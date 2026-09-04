@@ -1,0 +1,50 @@
+# Core agent orchestration
+# Verified installable on Python 3.14 (2026-09) at these floors — langgraph's
+# API has moved a lot since 0.2.x, verified against 1.2.11 specifically.
+langchain>=0.3.0
+langgraph>=1.2.0
+langchain-anthropic>=1.7.0
+
+# Serving
+fastapi>=0.115.0
+uvicorn[standard]>=0.30.0
+pydantic>=2.8.0
+sse-starlette>=2.1.0
+
+# Ingestion (PDF: text + tables + images)
+docling>=2.0.0
+
+# Vector store + retrieval
+chromadb>=0.5.0
+rank-bm25>=0.2.2
+sentence-transformers>=3.0.0
+
+# Classical ML (Intent Router; Risk-Trend tool inference)
+scikit-learn>=1.5.0
+joblib>=1.4.0
+numpy>=1.26.0
+pandas>=2.2.0
+
+# MLOps
+# NOTE: installing mlflow after chromadb downgrades protobuf (chromadb wants
+# 7.x, mlflow pins older) — pip resolved it without an apparent break in
+# testing, but re-verify chromadb still works if you bump either package.
+mlflow>=3.16.0
+
+# Evaluation
+ragas>=0.2.0
+
+# Local-model fallback (verified once, not the default demo path)
+ollama>=0.3.0
+
+# Observability
+opentelemetry-api>=1.27.0
+opentelemetry-sdk>=1.27.0
+
+# HTTP client for the production scoring API tool
+httpx>=0.27.0
+
+# Dev / test
+pytest>=8.3.0
+pytest-asyncio>=0.24.0
+python-dotenv>=1.0.0

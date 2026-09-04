@@ -1,0 +1,23 @@
+__pycache__/
+*.pyc
+.venv/
+venv/
+.env
+*.egg-info/
+
+# Vector store + ingested corpus artifacts (regenerate from source PDFs, don't commit)
+chroma_data/
+*.sqlite3
+
+# MLOps artifacts (regenerate via training scripts; registry state tracked separately)
+mlops/intent_router/artifacts/
+mlruns/
+mlflow.db
+
+# Never commit real UPI signals, PDFs pulled from a private source, or credentials
+data/raw_pdfs/
+*.pem
+*.key
+
+.pytest_cache/
+.coverage
