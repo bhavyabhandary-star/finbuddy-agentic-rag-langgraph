@@ -6,12 +6,15 @@ from __future__ import annotations
 
 import uuid
 
+from dotenv import load_dotenv
 from fastapi import FastAPI
 from pydantic import BaseModel
 from sse_starlette.sse import EventSourceResponse
 
 from agent.graph import build_graph
 from observability.tracing import trace_run
+
+load_dotenv()
 
 app = FastAPI(title="FinBuddy Agentic RAG (LangGraph)")
 
@@ -30,6 +33,7 @@ class AgentRunResponse(BaseModel):
     sources: list[str]
     confidence: float
     escalate_to_human: bool
+    disclaimer: str | None = None
 
 
 @app.get("/health")
@@ -55,6 +59,7 @@ def run_agent(request: AgentRunRequest) -> AgentRunResponse:
         sources=result.get("sources", []),
         confidence=result.get("confidence", 0.0),
         escalate_to_human=result.get("escalate_to_human", False),
+        disclaimer=result.get("disclaimer"),
     )
 
 

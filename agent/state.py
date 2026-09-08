@@ -39,6 +39,7 @@ class AgentState(TypedDict, total=False):
     sources: list[str]
     confidence: float
     escalate_to_human: bool
+    disclaimer: str | None  # fixed, code-appended text for credit_assessment answers only
 
     # guardrail / observability flags
     guardrail_flags: list[str]

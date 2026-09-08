@@ -71,3 +71,13 @@ class AgentResponse(BaseModel):
     sources: list[str] = Field(default_factory=list)
     confidence: float
     escalate_to_human: bool = False
+    disclaimer: str | None = Field(
+        None,
+        description=(
+            "Fixed, code-appended text (never LLM-generated) for financial-"
+            "decision-adjacent answers — see agent/nodes/generate.py. Kept as its "
+            "own field rather than baked into `answer` so its exact wording is "
+            "guaranteed, the same reason production FinBuddy's low-confidence "
+            "escalation message is a fixed string, not LLM-translated."
+        ),
+    )

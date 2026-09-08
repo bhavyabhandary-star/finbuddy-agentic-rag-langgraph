@@ -47,11 +47,17 @@ class LLMProvider(ABC):
         """Returns raw completion text (expected to be JSON per the schema)."""
 
 
+DEFAULT_CLAUDE_MODEL = "claude-sonnet-5"
+
+
 class ClaudeProvider(LLMProvider):
+    def __init__(self, model: str = DEFAULT_CLAUDE_MODEL):
+        self.model = model
+
     def complete(self, system_prompt: str, user_query: str, max_tokens: int) -> str:
         from langchain_anthropic import ChatAnthropic
 
-        llm = ChatAnthropic(model="claude-3-5-sonnet-latest", max_tokens=max_tokens)
+        llm = ChatAnthropic(model=self.model, max_tokens=max_tokens)
         response = llm.invoke([("system", system_prompt), ("human", user_query)])
         return response.content
 
@@ -74,6 +80,53 @@ class OllamaProvider(LLMProvider):
             options={"num_predict": max_tokens},
         )
         return response["message"]["content"]
+
+
+DEFAULT_HF_MODEL = "Qwen/Qwen2.5-7B-Instruct"  # ungated, broadly available across HF Inference Providers
+
+
+class HuggingFaceProvider(LLMProvider):
+    """Hosted local-model-family fallback via HF's Inference Providers (not
+    Claude, not a locally-run process) — an alternative to OllamaProvider for
+    when a paid HF subscription is available instead of local Ollama install.
+
+    provider="auto" failed on this account with "not supported by any
+    provider you have enabled" (verified by running it) — the account has no
+    default/enabled provider for auto-routing, so an explicit provider is
+    required. "featherless-ai" was verified working for DEFAULT_HF_MODEL;
+    override via HF_PROVIDER if you enable a different one in your HF
+    settings (huggingface.co/settings/inference-providers).
+    """
+
+    def __init__(self, model: str | None = None, provider: str | None = None):
+        self.model = model or os.environ.get("HF_MODEL", DEFAULT_HF_MODEL)
+        self.provider = provider or os.environ.get("HF_PROVIDER", "featherless-ai")
+
+    def complete(self, system_prompt: str, user_query: str, max_tokens: int) -> str:
+        from huggingface_hub import InferenceClient
+
+        client = InferenceClient(
+            model=self.model, provider=self.provider, token=os.environ.get("HF_TOKEN")
+        )
+        # Verified necessary, not optional: without response_format, this model
+        # (unlike Claude) frequently prepends prose before the JSON despite an
+        # explicit "return ONLY JSON" instruction, failing schema validation.
+        response = client.chat_completion(
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_query},
+            ],
+            max_tokens=max_tokens,
+            response_format={"type": "json_object"},
+        )
+        return response.choices[0].message.content
+
+
+CREDIT_ASSESSMENT_DISCLAIMER = (
+    "This is an AI-generated explanation of an automated assessment, not "
+    "financial advice. Treat it as decision-support — confirm any important "
+    "decision with FinBuddy support."
+)
 
 
 def _build_data_section(state: AgentState) -> str:
@@ -106,13 +159,40 @@ def generate_node(
 
     parsed: AgentResponse = validate_structured_output(raw, AgentResponse, regenerate=_regenerate)
 
+    # Classical override, not a request: don't trust the model's own
+    # escalate_to_human when the classical sufficiency check already said the
+    # context was insufficient. Verified necessary, not theoretical — a weaker
+    # model (the HF fallback) confidently answered an off-corpus question
+    # instead of escalating on one real run and correctly escalated on
+    # another, purely by chance. Session 18's "add a verification step" theme,
+    # applied the same way as the tool_error fix above: a classical check
+    # beats hoping the model self-reports correctly.
+    escalate_to_human = parsed.escalate_to_human or state.get("sufficient") is False
+
+    # Disclaimer is fixed, code-appended text, never LLM-generated — same reason
+    # production FinBuddy's low-confidence escalation string is fixed, not
+    # LLM-translated: compliance-relevant wording must be guaranteed verbatim.
+    disclaimer = CREDIT_ASSESSMENT_DISCLAIMER if state.get("route") == "credit_assessment" else None
+
     if tracer:
-        tracer.log_step("generate", decision="produced structured response", confidence=parsed.confidence)
+        # Logging the actual answer (not just a confidence number) is what
+        # makes this a real audit trail of AI-assisted decisions, per Session
+        # 18's "maintain a trail of AI assisted decisions" guardrail — a
+        # confidence score alone doesn't let anyone reconstruct what was said.
+        tracer.log_step(
+            "generate",
+            decision="produced structured response",
+            answer=parsed.answer,
+            confidence=parsed.confidence,
+            escalate_to_human=escalate_to_human,
+            model_self_reported_escalate=parsed.escalate_to_human,
+        )
 
     return {
         **state,
         "answer": parsed.answer,
         "sources": parsed.sources,
         "confidence": parsed.confidence,
-        "escalate_to_human": parsed.escalate_to_human,
+        "escalate_to_human": escalate_to_human,
+        "disclaimer": disclaimer,
     }

@@ -34,8 +34,11 @@ mlflow>=3.16.0
 # Evaluation
 ragas>=0.2.0
 
-# Local-model fallback (verified once, not the default demo path)
+# Local-model fallback options (verified once, not the default demo path) —
+# Ollama (fully local) and/or HF Inference Providers (hosted, needs a paid HF
+# subscription for predictable access) — see agent/nodes/generate.py
 ollama>=0.3.0
+huggingface_hub>=1.20.0
 
 # Observability
 opentelemetry-api>=1.27.0
