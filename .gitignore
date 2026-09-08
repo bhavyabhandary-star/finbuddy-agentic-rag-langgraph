@@ -9,8 +9,10 @@ venv/
 chroma_data/
 *.sqlite3
 
-# MLOps artifacts (regenerate via training scripts; registry state tracked separately)
+# MLOps artifacts (regenerate via training scripts + mlops/intent_router/data.py;
+# the registry itself is also regenerable, not a source-of-truth to version)
 mlops/intent_router/artifacts/
+mlops/intent_router/registry_store/
 mlruns/
 mlflow.db
 

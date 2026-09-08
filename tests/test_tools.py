@@ -9,7 +9,7 @@ def test_check_sufficiency_above_threshold():
 
 
 def test_check_sufficiency_below_threshold():
-    assert check_sufficiency(0.50) is False
+    assert check_sufficiency(0.30) is False
 
 
 def test_assess_credit_profile_success():

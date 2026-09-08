@@ -139,9 +139,9 @@ Vector DB  (Chroma, local — "temporary storage" per the whiteboard, not a perm
 │    ↓                                                                │
 │  Retrieve (hybrid: dense embedding + BM25 sparse, then re-rank)    │
 │    ↓                                                                │
-│  Sufficiency Check (classical: top-hit cosine score vs threshold,  │
-│                      same pattern as production FinBuddy's 0.70    │
-│                      gate — NOT an LLM judging itself)             │
+│  Sufficiency Check (classical: top-hit CROSS-ENCODER score vs      │
+│                      threshold — NOT raw cosine similarity, and    │
+│                      NOT an LLM judging itself; see note below)    │
 │    ↓ (insufficient) ──────► Add More Context ──► loop back to      │
 │    ↓ (sufficient)                                    Retrieve      │
 │  Generate (LLM call — the ONLY mandatory LLM step; structured      │
@@ -187,8 +187,8 @@ Map to Session 12's four agent components:
 |---|---|---|
 | Query routing (policy question vs coaching question vs off-topic) | `scikit-learn` text classifier (TF-IDF + logistic regression) or keyword rules | Deterministic, cheap, and the intent classifier in production FinBuddy already proves LaBSE-embedding classifiers beat LLM-based routing on cost and latency |
 | Sparse retrieval | `rank_bm25` | Classical IR, no embedding cost |
-| Re-ranking | Cosine similarity / cross-encoder (small, local model) — not an LLM prompt | Ranking is a scoring problem, not a generation problem |
-| Sufficiency check | Threshold on top-retrieved-chunk similarity score | Same escalation logic as production FinBuddy's 0.70 gate — deterministic and auditable |
+| Re-ranking | `cross-encoder/ms-marco-MiniLM-L-6-v2` (local, sentence-transformers) — not an LLM prompt | Ranking is a scoring problem, not a generation problem. **Load-bearing, not cosmetic**: verified on real ingested PDFs that raw bi-encoder cosine similarity topped out at ~0.45 for genuinely correct matches on this dense legal-text corpus, while the cross-encoder scored the same true match at 0.996 (post-sigmoid) and an irrelevant chunk at ~0.00003 — a bi-encoder's cosine score is a ranking signal, not a calibrated confidence signal, and doesn't transfer across corpora with different register/length |
+| Sufficiency check | Threshold (0.5) on the cross-encoder's sigmoid-mapped score — NOT on raw cosine similarity | Deterministic and auditable, and — after the re-ranking fix above — actually calibrated against this corpus's real score distribution, not an inherited number that turned out to make the RAG path unreachable (every real query escalated under the old cosine threshold before this fix) |
 | PII/compliance flag on input | Regex + a small classical classifier | Don't send unredacted PII to an LLM at all |
 | Route-by-difficulty (cost optimization) | Rule/classical check on query length/complexity | Simple queries shouldn't invoke the full agent loop at all — only complex ones need it |
 
