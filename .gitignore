@@ -21,5 +21,8 @@ data/raw_pdfs/
 *.pem
 *.key
 
+# Copied read-only from finbuddy-project (that repo's own artifact, not ours to version)
+mlops/risk_trend_monitor/artifacts/
+
 .pytest_cache/
 .coverage

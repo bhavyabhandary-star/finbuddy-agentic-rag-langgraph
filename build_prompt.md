@@ -57,7 +57,7 @@ lender API" consumer already named in that repo's own architecture diagram.
 | **F-003 SHAP TreeExplainer** — Explainability | Included in the same tool's response | `top_3_factors` comes back from the same `/api/v1/score` call — don't re-derive SHAP values locally, the production response already has them |
 | **F-006 Isolation Forest** — Anomaly Detection | Included in the same tool's response | `is_anomalous` / `anomaly_note` come back from the same call — this is a pre-scoring check on the **UPI signals**, not on the user's chat message |
 | **F-012 Fairlearn Equalized Odds** — Bias Audit | Included in the same tool's response | `fairness_mitigation_applied` and the approval decision already reflect production's fairness-mitigated threshold — surface this to the user/judge as-is, don't recompute it |
-| **Logistic Regression (Ridge/Lasso)** — Risk-Trend Classifier (featured deep-dive) | Tool: `assess_risk_trend` | Loads `risk_trend_logreg.joblib` **read-only** from the production repo's artifacts directory and runs inference locally in this project — this is the one model this project actually executes itself, so it's also the one this project can meaningfully demo the Ridge-vs-Lasso engineering story around (see Demo Narrative) |
+| **Logistic Regression (Ridge/Lasso)** — Risk-Trend Classifier (featured deep-dive) | Tool: `assess_risk_trend` | Loads `risk_trend_logreg.joblib` **read-only** from the production repo's artifacts directory and runs inference locally in this project — this is the one model this project actually executes itself, so it's also the one this project can meaningfully demo the Ridge-vs-Lasso engineering story around (see Demo Narrative). **Verified contract**: inputs must be pre-z-scored against the training population (the scaler was never persisted as its own artifact — it only exists implicitly inside `generate_synthetic_upi_data.py`), matching production's own scoping since it never exposes this model to a raw-delta caller either. Also verified: 2 of the 8 declared features are constant-zero in 100% of real training rows, and the model's own coefficients are exactly 0.0 for both — confirmed harmless, not guessed |
 
 ### The Intent Router (new, small, separate — not one of the five)
 
@@ -105,15 +105,21 @@ Retrain Trigger  — accuracy decay or a misroute-rate breach queues retraining 
 ```
 
 **2. The Risk-Trend Classifier tool** (partial ownership — you execute it, but you
-didn't train it): monitor its **input distribution** (the UPI-derived delta features
-it consumes) for drift using the same PSI approach production FinBuddy documents in
-`scoring_service/monitoring/drift_report.py`, since a model trained on synthetic data
-and then fed different-shaped inputs from this project is exactly the kind of
-silent-failure case that monitoring exists to catch. Retraining that model, if ever
-needed, is production FinBuddy's responsibility, not this project's — this project
-only needs to **detect and flag** drift, then fall back to the credit score's own
-`is_anomalous` signal from `assess_credit_profile` if the risk-trend inputs look
-unreliable.
+didn't train it): monitor its **input distribution** for drift, using two DIFFERENT
+checks for two different jobs — found necessary by actually wiring this up, not
+assumed upfront. A **per-request** check (is this one incoming value plausible?)
+cannot use PSI the way `drift_report.py` does: PSI is a batch-comparison statistic,
+and verified directly that applying it to a single value (n=1) against a 10-bin
+reference always reports "drift" regardless of whether the value is typical — one
+point concentrating 100% of its mass in one bin against a reference spread ~10%/bin
+is guaranteed to diverge, which is a property of the metric, not a signal about the
+data. `check_input_drift()` uses a percentile-band (1st/99th) out-of-range check for
+this instead. The batch-PSI machinery is still implemented (`fit_reference_bins()`),
+for a future weekly-dashboard consumer, matching the drift-ladder design below, but
+is not called per-request. Retraining the model, if ever needed, is production
+FinBuddy's responsibility, not this project's — this project only needs to **detect
+and flag**, then fall back to the credit score's own `is_anomalous` signal from
+`assess_credit_profile` if the risk-trend inputs look unreliable.
 
 ### Drift response ladder (for the Intent Router and for Risk-Trend input monitoring)
 

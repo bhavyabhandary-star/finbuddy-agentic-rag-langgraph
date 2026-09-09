@@ -53,6 +53,20 @@ cp .env.example .env   # fill in ANTHROPIC_API_KEY at minimum
 uvicorn api.main:app --reload --port 8010
 ```
 
+**One-time setup for the Risk-Trend tool** (`assess_risk_trend`): copy the real,
+already-trained artifact from `finbuddy-project` — this project consumes it
+read-only and never regenerates it itself:
+
+```bash
+cp "<path-to-finbuddy-project>/scoring_service/models/artifacts/risk_trend_logreg.joblib" \
+   mlops/risk_trend_monitor/artifacts/risk_trend_logreg.joblib
+python -m mlops.risk_trend_monitor.build_reference_distribution \
+   "<path-to-finbuddy-project>/scoring_service/data/synthetic_risk_trend_dataset.csv"
+```
+
+The tests that exercise this tool skip automatically if the artifact isn't
+present (same pattern as the API-key-gated integration tests).
+
 ```bash
 pytest tests/ -v
 python -m eval.evaluate_agent --gate

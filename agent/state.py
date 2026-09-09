@@ -28,7 +28,10 @@ class AgentState(TypedDict, total=False):
     loop_count: int
 
     # credit-assessment path — signals/delta_features are seeded by the API layer
-    # (Layer 1) before the graph is invoked; the agent never collects these itself
+    # (Layer 1) before the graph is invoked; the agent never collects these itself.
+    # risk_trend_delta_features must be PRE-Z-SCORED against the training
+    # population, not raw natural-unit deltas — see tools/credit_tools.py's
+    # assess_risk_trend docstring for the verified contract and why.
     credit_signals: dict
     risk_trend_delta_features: dict | None
     credit_assessment: CreditAssessmentResult | None

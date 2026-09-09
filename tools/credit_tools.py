@@ -83,16 +83,39 @@ def _load_risk_trend_model():
 
 
 def assess_risk_trend(delta_features: dict) -> RiskTrendResult:
-    """Runs the read-only Risk-Trend (Logistic Regression Ridge/Lasso) artifact.
+    """Runs the read-only Risk-Trend (Logistic Regression, Ridge/L2) artifact.
 
-    delta_features must contain all keys in RISK_TREND_FEATURE_ORDER — same
-    contract as finbuddy-project's train_risk_trend.py.
+    CONTRACT (verified against finbuddy-project's actual training code, not
+    assumed): delta_features must be PRE-Z-SCORED against the training
+    population, not raw natural-unit deltas (e.g. rupees). The training
+    pipeline (generate_synthetic_upi_data.generate_risk_trend_dataset) fits on
+    `_zscore(late - early)` per signal, and that scaler was never persisted as
+    its own artifact — it only exists implicitly inside that one-off script.
+    This project deliberately matches production FinBuddy's own scoping here:
+    production itself never exposes this model to a raw-delta caller either —
+    it only runs as an internal monthly batch job over its own regenerated
+    feature pipeline (see the capstone deck's "Risk-Trend classifier" slide).
+    Whoever populates `risk_trend_delta_features` (the API layer, per
+    agent/state.py's note) is responsible for producing already-scaled deltas.
+
+    Two of the 8 declared features — delta_avg_transaction_size,
+    delta_tenure_months — are constant-zero in 100% of the real training data
+    (verified against the real synthetic_risk_trend_dataset.csv) and the
+    loaded model's own learned coefficients are exactly 0.0000 for both.
+    Whatever value is passed for them here has zero effect on the prediction.
     """
     drift_flag = check_input_drift(delta_features)
 
     def _call() -> RiskTrendResult:
+        import pandas as pd
+
         model = _load_risk_trend_model()
-        ordered = [[delta_features[k] for k in RISK_TREND_FEATURE_ORDER]]
+        # A plain list-of-lists produced a real sklearn UserWarning ("X does
+        # not have valid feature names, but LogisticRegression was fitted
+        # with feature names") — the training pipeline fit on a named
+        # DataFrame (train_df[DELTA_FEATURE_COLUMNS]), so matching that shape
+        # exactly here, not just the column order, is what the model expects.
+        ordered = pd.DataFrame([delta_features], columns=RISK_TREND_FEATURE_ORDER)
         proba_improving = float(model.predict_proba(ordered)[0][1])
         trend = "improving" if proba_improving >= 0.5 else "decaying"
         return RiskTrendResult(

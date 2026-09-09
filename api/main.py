@@ -24,6 +24,8 @@ class AgentRunRequest(BaseModel):
     session_id: str | None = None
     # Present only for a credit-assessment request — the API layer, not the
     # agent, is responsible for collecting these (see agent/state.py's note).
+    # risk_trend_delta_features must already be z-scored against the training
+    # population — see tools/credit_tools.py's assess_risk_trend docstring.
     credit_signals: dict | None = None
     risk_trend_delta_features: dict | None = None
 
