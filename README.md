@@ -11,6 +11,7 @@ pinned: false
 # FinBuddy Agentic RAG (LangGraph)
 
 **Repo:** [github.com/bhavyabhandary-star/finbuddy-agentic-rag-langgraph](https://github.com/bhavyabhandary-star/finbuddy-agentic-rag-langgraph)
+**Live demo:** [huggingface.co/spaces/BhavyaBhandary/finbuddy-langgraph-agent](https://huggingface.co/spaces/BhavyaBhandary/finbuddy-langgraph-agent)
 
 A local-first, agentic RAG system that answers FinBuddy policy/coaching questions
 grounded in real RBI/DPDP PDFs, and orchestrates FinBuddy's existing production
