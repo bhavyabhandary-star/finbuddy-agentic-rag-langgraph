@@ -12,7 +12,7 @@ from __future__ import annotations
 from langgraph.graph import END, StateGraph
 
 from agent.nodes.credit_assessment import credit_assessment_node
-from agent.nodes.generate import generate_node
+from agent.nodes.generate import LLMProvider, generate_node
 from agent.nodes.retrieve import retrieve_node
 from agent.nodes.route import route_node
 from agent.state import MAX_LOOP_ITERATIONS, AgentState
@@ -83,7 +83,12 @@ def _should_generate_from_credit_assessment(state: AgentState) -> str:
     return "generate"
 
 
-def build_graph(tracer: RunTracer | None = None):
+def build_graph(tracer: RunTracer | None = None, provider: LLMProvider | None = None):
+    """provider is injectable (defaults to Claude inside generate_node when
+    None) so callers can substitute HuggingFaceProvider/OllamaProvider without
+    monkeypatching — needed for real end-to-end verification while Claude API
+    billing is unresolved, and matches kickoff_prompt.md's LLM-agnostic design.
+    """
     graph = StateGraph(AgentState)
 
     graph.add_node("route", lambda s: route_node(s, tracer))
@@ -94,7 +99,7 @@ def build_graph(tracer: RunTracer | None = None):
             s, signals=s.get("credit_signals", {}), delta_features=s.get("risk_trend_delta_features"), tracer=tracer
         ),
     )
-    graph.add_node("generate", lambda s: generate_node(s, tracer=tracer))
+    graph.add_node("generate", lambda s: generate_node(s, provider=provider, tracer=tracer))
     graph.add_node("escalate", lambda s: _escalate_node(s, tracer))
 
     graph.set_entry_point("route")

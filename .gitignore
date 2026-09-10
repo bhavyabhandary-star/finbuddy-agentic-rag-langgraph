@@ -18,6 +18,7 @@ mlflow.db
 
 # Never commit real UPI signals, PDFs pulled from a private source, or credentials
 data/raw_pdfs/
+data/setu_real_profiles.jsonl
 *.pem
 *.key
 
@@ -26,3 +27,6 @@ mlops/risk_trend_monitor/artifacts/
 
 .pytest_cache/
 .coverage
+
+# Per-run trace output (observability/tracing.py) — ephemeral, not a source of truth
+traces/

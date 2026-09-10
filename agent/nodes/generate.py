@@ -37,7 +37,7 @@ guessing.
 {data}
 
 ## OUTPUT FORMAT (strict JSON, matching this schema exactly):
-{{"answer": "...", "sources": ["..."], "confidence": 0.0, "escalate_to_human": false}}
+{{"answer": "...", "confidence": 0.0, "escalate_to_human": false}}
 """
 
 
@@ -129,6 +129,26 @@ CREDIT_ASSESSMENT_DISCLAIMER = (
 )
 
 
+def _deterministic_sources(state: AgentState) -> list[str]:
+    """Real bug found end-to-end testing (milestone step 6): the prompt asked
+    the LLM to fill in "sources" itself, and it populated the field with
+    quoted excerpt text instead of document identifiers — a reasonable
+    guess given the prompt never specified the format, but wrong, and not a
+    failure mode worth prompt-engineering around when the actual retrieved
+    chunks' source filenames are already known deterministically in state.
+    Citation accuracy shouldn't depend on the LLM correctly copying it —
+    same reasoning as the escalate_to_human override above.
+    """
+    if state.get("route") != "policy":
+        return []
+    chunks = state.get("retrieved_chunks", [])
+    seen: list[str] = []
+    for c in chunks:
+        if c.source not in seen:
+            seen.append(c.source)
+    return seen
+
+
 def _build_data_section(state: AgentState) -> str:
     if state.get("route") == "credit_assessment":
         credit = state.get("credit_assessment")
@@ -191,7 +211,7 @@ def generate_node(
     return {
         **state,
         "answer": parsed.answer,
-        "sources": parsed.sources,
+        "sources": _deterministic_sources(state),
         "confidence": parsed.confidence,
         "escalate_to_human": escalate_to_human,
         "disclaimer": disclaimer,

@@ -4,6 +4,7 @@ Run: uvicorn api.main:app --reload --port 8010
 """
 from __future__ import annotations
 
+import os
 import uuid
 
 from dotenv import load_dotenv
@@ -12,11 +13,41 @@ from pydantic import BaseModel
 from sse_starlette.sse import EventSourceResponse
 
 from agent.graph import build_graph
+from agent.nodes.generate import ClaudeProvider, HuggingFaceProvider, LLMProvider, OllamaProvider
+from ingestion.setu_feed import load_cached_real_profile
 from observability.tracing import trace_run
 
 load_dotenv()
 
 app = FastAPI(title="FinBuddy Agentic RAG (LangGraph)")
+
+
+def _default_provider() -> LLMProvider:
+    """Env-configurable provider selection (LLM_PROVIDER=claude|huggingface|
+    ollama, defaults to claude) — kickoff_prompt.md's LLM-agnostic design
+    goal, made real: swapping providers for the deployed API needs an env
+    var, not a code change. build_graph()'s injectable `provider` param
+    (added for testing while Claude billing was blocked) is what makes this
+    possible without touching agent/graph.py at all.
+    """
+    choice = os.environ.get("LLM_PROVIDER", "claude").lower()
+    if choice == "huggingface":
+        return HuggingFaceProvider()
+    if choice == "ollama":
+        return OllamaProvider()
+    return ClaudeProvider()
+
+
+_UPI_SIGNAL_KEYS = (
+    "avg_monthly_income",
+    "income_regularity_score",
+    "tx_count_30d",
+    "merchant_diversity",
+    "balance_dip_frequency",
+    "b2b_ratio",
+    "avg_transaction_size",
+    "tenure_months",
+)
 
 
 class AgentRunRequest(BaseModel):
@@ -28,6 +59,11 @@ class AgentRunRequest(BaseModel):
     # population — see tools/credit_tools.py's assess_risk_trend docstring.
     credit_signals: dict | None = None
     risk_trend_delta_features: dict | None = None
+    # When true, ignores credit_signals and uses the real, most-recently
+    # pulled Setu AA sandbox profile instead — the capstone's own "Setu AA
+    # Feed" pipeline stage, see ingestion/setu_feed.py. Real sandbox data,
+    # not synthesized: consent-based 12-mo UPI pull, normalized to 8 signals.
+    use_setu_feed: bool = False
 
 
 class AgentRunResponse(BaseModel):
@@ -43,16 +79,27 @@ def health() -> dict:
     return {"status": "ok"}
 
 
+def _resolve_credit_signals(request: "AgentRunRequest") -> dict:
+    if not request.use_setu_feed:
+        return request.credit_signals or {}
+    profile = load_cached_real_profile()
+    if profile is None:
+        return {}  # no real profile pulled yet — assess_credit_profile's own
+        # guardrail (tool_error on a bad/incomplete request) covers this, not
+        # a fabricated fallback here.
+    return {k: profile[k] for k in _UPI_SIGNAL_KEYS if k in profile}
+
+
 @app.post("/agent/run", response_model=AgentRunResponse)
 def run_agent(request: AgentRunRequest) -> AgentRunResponse:
     session_id = request.session_id or str(uuid.uuid4())
     with trace_run(run_id=session_id) as tracer:
-        graph = build_graph(tracer=tracer)
+        graph = build_graph(tracer=tracer, provider=_default_provider())
         result = graph.invoke(
             {
                 "query": request.query,
                 "session_id": session_id,
-                "credit_signals": request.credit_signals or {},
+                "credit_signals": _resolve_credit_signals(request),
                 "risk_trend_delta_features": request.risk_trend_delta_features,
             }
         )
@@ -75,11 +122,11 @@ async def run_agent_stream(request: AgentRunRequest):
 
     async def event_generator():
         with trace_run(run_id=session_id) as tracer:
-            graph = build_graph(tracer=tracer)
+            graph = build_graph(tracer=tracer, provider=_default_provider())
             initial_state = {
                 "query": request.query,
                 "session_id": session_id,
-                "credit_signals": request.credit_signals or {},
+                "credit_signals": _resolve_credit_signals(request),
                 "risk_trend_delta_features": request.risk_trend_delta_features,
             }
             final_state = None

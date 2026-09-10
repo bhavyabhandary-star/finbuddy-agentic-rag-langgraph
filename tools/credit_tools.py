@@ -30,13 +30,19 @@ def assess_credit_profile(signals: dict, geography: str | None = None) -> Credit
 
     Never forwards these signals anywhere else — see guardrails/tool_policy.py's
     tool-call policy and kickoff_prompt.md's guardrail table.
+
+    Timeout is 60s, not a tighter number — found necessary by hitting this
+    live: the free-tier HF Space this API runs on sleeps after inactivity and
+    took ~60-90s to cold-start on a real call. A 5s timeout meant the FIRST
+    real request after any idle period always failed and escalated — a bad
+    first impression for a demo, not a safety margin worth keeping tight.
     """
 
     def _call() -> CreditAssessmentResult:
         payload = dict(signals)
         if geography:
             payload["geography"] = geography
-        with httpx.Client(timeout=5.0) as client:
+        with httpx.Client(timeout=60.0) as client:
             resp = client.post(f"{SCORING_API_BASE_URL}/api/v1/score", json=payload)
             resp.raise_for_status()
             data = resp.json()

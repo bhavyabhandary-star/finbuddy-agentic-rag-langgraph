@@ -2,7 +2,8 @@
 
 A local-first, agentic RAG system that answers FinBuddy policy/coaching questions
 grounded in real RBI/DPDP PDFs, and orchestrates FinBuddy's existing production
-credit-scoring models as tools — built with LangChain + LangGraph.
+credit-scoring pipeline as tools — real Setu AA Feed sandbox data in, the live
+scoring API + Risk-Trend model for inference — built with LangChain + LangGraph.
 
 **Read the design docs first, in this order:**
 
@@ -31,7 +32,8 @@ observability/  tracing, evaluation hooks, cost/step logging               (Laye
 mlops/          Intent Router's full train/track/registry/drift loop;
                 Risk-Trend tool's input-drift monitor (detect-only)        (Layer 7)
 
-ingestion/      PDF ingestion (Docling) → chunking → Chroma vector store
+ingestion/      PDF ingestion (Docling) → chunking → Chroma vector store;
+                Setu AA Feed (real sandbox UPI data → 8 signals)
 eval/           scenario harness + RAGAS metrics; CI gate
 tests/          pytest suite
 docs/           additional design notes as the project grows
@@ -39,19 +41,29 @@ docs/           additional design notes as the project grows
 
 ## Status
 
-Scaffold stage — module skeletons and interfaces are in place per the milestone
-checklist in `build_prompt.md`; most functions are stubs with clear TODOs. See each
-module's docstring for what's real vs. not yet implemented — this project follows
-the same "what's real vs. demo-grade" honesty convention as `finbuddy-project`'s own
-README.
+Milestone steps 1–6 (of `build_prompt.md`'s checklist) are real and verified end
+to end, not stubs: PDF ingestion (5 real RBI/DPDP PDFs → Chroma), cross-encoder
+re-ranking, a trained Intent Router (real MLOps loop), the credit-assessment
+tools (live production API + real Risk-Trend artifact + real Setu AA sandbox
+data), and the full LangGraph state machine, run for real end to end for all
+three routes. See each module's docstring for what's real vs. not yet
+implemented — this project follows the same "what's real vs. demo-grade"
+honesty convention as `finbuddy-project`'s own README.
 
 ## Running it (once dependencies are installed)
 
 ```bash
 pip install -r requirements.txt
-cp .env.example .env   # fill in ANTHROPIC_API_KEY at minimum
+cp .env.example .env
 uvicorn api.main:app --reload --port 8010
 ```
+
+**Choose an LLM provider** in `.env` via `LLM_PROVIDER` (`claude` / `huggingface`
+/ `ollama`) and fill in the matching credential. Claude needs `ANTHROPIC_API_KEY`
+*and* a funded account — a `claude.ai` chat subscription does **not** cover API
+usage, they're billed separately. `huggingface` needs `HF_TOKEN` (a free HF
+account's token) and works out of the box with the default model/provider in
+`.env.example`. `ollama` needs a local Ollama install.
 
 **One-time setup for the Risk-Trend tool** (`assess_risk_trend`): copy the real,
 already-trained artifact from `finbuddy-project` — this project consumes it
@@ -64,8 +76,22 @@ python -m mlops.risk_trend_monitor.build_reference_distribution \
    "<path-to-finbuddy-project>/scoring_service/data/synthetic_risk_trend_dataset.csv"
 ```
 
-The tests that exercise this tool skip automatically if the artifact isn't
-present (same pattern as the API-key-gated integration tests).
+**One-time setup for the Setu AA Feed** (`ingestion/setu_feed.py`): copy the
+real, already-pulled sandbox profile — same read-only pattern:
+
+```bash
+cp "<path-to-finbuddy-project>/scoring_service/data/setu_real_profiles.jsonl" \
+   data/setu_real_profiles.jsonl
+```
+
+Pulling a *fresh* profile (`ingestion.setu_feed.pull_fresh_profile()`) needs
+real `SETU_*` credentials in `.env` and a human to approve the consent URL in a
+browser — there is no headless way to do this (Setu's own sandbox protocol
+requires it). Not needed to use the already-pulled profile above.
+
+The tests that exercise these real dependencies skip automatically if the
+artifact/profile/token isn't present (same pattern throughout — check each
+test file's `pytest.mark.skipif` for exactly what it needs).
 
 ```bash
 pytest tests/ -v
