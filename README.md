@@ -63,6 +63,14 @@ three routes. See each module's docstring for what's real vs. not yet
 implemented — this project follows the same "what's real vs. demo-grade"
 honesty convention as `finbuddy-project`'s own README.
 
+Milestone step 9 (deployment) is also done: containerized and deployed to a new,
+separate HuggingFace Space at
+[huggingface.co/spaces/BhavyaBhandary/finbuddy-langgraph-agent](https://huggingface.co/spaces/BhavyaBhandary/finbuddy-langgraph-agent),
+verified live by calling `/agent/run` directly against the deployed instance and
+confirming all three routes (grounded policy answer with citation, off-topic
+refusal, insufficient-context escalation) work end to end in production — not
+just locally.
+
 ## Running it (once dependencies are installed)
 
 ```bash
