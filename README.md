@@ -10,6 +10,8 @@ pinned: false
 
 # FinBuddy Agentic RAG (LangGraph)
 
+**Repo:** [github.com/bhavyabhandary-star/finbuddy-agentic-rag-langgraph](https://github.com/bhavyabhandary-star/finbuddy-agentic-rag-langgraph)
+
 A local-first, agentic RAG system that answers FinBuddy policy/coaching questions
 grounded in real RBI/DPDP PDFs, and orchestrates FinBuddy's existing production
 credit-scoring pipeline as tools — real Setu AA Feed sandbox data in, the live
