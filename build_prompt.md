@@ -192,5 +192,10 @@ answers the "why didn't you just retrain everything" question before it's asked.
    times out / production API is down" as an explicit tested failure case),
    tracing, and CI gate from `kickoff_prompt.md`; verify the local-Ollama fallback
    once and keep the proof.
-9. Containerize and deploy to a **new** HuggingFace Space; confirm the existing
-   production FinBuddy Spaces are untouched.
+9. **[DONE]** Containerize and deploy to a **new** HuggingFace Space; confirm the
+   existing production FinBuddy Spaces are untouched. Deployed to
+   [huggingface.co/spaces/BhavyaBhandary/finbuddy-langgraph-agent](https://huggingface.co/spaces/BhavyaBhandary/finbuddy-langgraph-agent);
+   verified live by calling `/agent/run` directly and confirming all three
+   routes work end to end in production (grounded policy answer with citation,
+   off-topic refusal, insufficient-context escalation). Source pushed to
+   [github.com/bhavyabhandary-star/finbuddy-agentic-rag-langgraph](https://github.com/bhavyabhandary-star/finbuddy-agentic-rag-langgraph).
