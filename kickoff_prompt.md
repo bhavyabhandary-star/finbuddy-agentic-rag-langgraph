@@ -389,7 +389,10 @@ exist — don't leave it as a placeholder in the final submission.
    production FinBuddy's Gate A/Gate B tests.
 8. Add the evaluation harness (scenario set + RAGAS) and wire it into a CI gate.
 9. Add tracing (LangSmith/OpenTelemetry) and streaming on the FastAPI endpoint.
-10. Containerize and deploy; capture a live demo link, not just a notebook.
+10. **[DONE]** Containerize and deploy; capture a live demo link, not just a
+    notebook. Live at
+    [huggingface.co/spaces/BhavyaBhandary/finbuddy-langgraph-agent](https://huggingface.co/spaces/BhavyaBhandary/finbuddy-langgraph-agent)
+    — see `build_prompt.md`'s milestone 9 for the verification detail.
 
 ## Decisions (resolved — see `build_prompt.md` for the full build spec)
 
