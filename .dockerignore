@@ -1,0 +1,16 @@
+.venv/
+.venv-deploy-test/
+.git/
+__pycache__/
+*.pyc
+.pytest_cache/
+.coverage
+tests/
+traces/
+mlruns/
+mlflow.db
+data/raw_pdfs/
+docs/
+*.md
+.env
+.env.example

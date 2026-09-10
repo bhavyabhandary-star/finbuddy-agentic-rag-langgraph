@@ -1,3 +1,13 @@
+---
+title: FinBuddy Agentic RAG (LangGraph)
+emoji: 🧭
+colorFrom: blue
+colorTo: indigo
+sdk: docker
+app_port: 7860
+pinned: false
+---
+
 # FinBuddy Agentic RAG (LangGraph)
 
 A local-first, agentic RAG system that answers FinBuddy policy/coaching questions
