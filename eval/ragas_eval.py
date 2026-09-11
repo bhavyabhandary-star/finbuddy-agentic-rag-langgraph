@@ -14,14 +14,19 @@ all-MiniLM-L6-v2 model the retrieval pipeline itself runs on
 (ingestion/vector_store.py) — no extra model, no extra cost.
 
 Run: python -m eval.ragas_eval
+Run against the deployed HF Space instead of local generation:
+    python -m eval.ragas_eval --production [space_url]
 """
 from __future__ import annotations
 
 import os
+import sys
 
 from agent.nodes.generate import DEFAULT_HF_MODEL, HuggingFaceProvider, generate_node
 from ingestion.vector_store import VectorStore
 from tools.rag_tools import retrieve_pdf_chunks
+
+DEFAULT_SPACE_URL = "https://bhavyabhandary-finbuddy-langgraph-agent.hf.space"
 
 # Real questions against the real ingested corpus (data/raw_pdfs/), each paired
 # with a ground_truth fact extracted directly from the source PDF text (verified
@@ -88,6 +93,44 @@ def build_real_qa_pairs(vector_store: VectorStore | None = None) -> list[dict]:
     return qa_pairs
 
 
+def build_real_qa_pairs_from_production(
+    space_url: str = DEFAULT_SPACE_URL, vector_store: VectorStore | None = None
+) -> list[dict]:
+    """Same seed questions, but the answer comes from a real HTTP call to the
+    deployed HF Space's /agent/run -- genuinely production, not a local stand-in.
+
+    One honest limitation: AgentRunResponse (api/main.py) doesn't expose the raw
+    retrieved chunk text, only source filenames -- RAGAS needs the actual context
+    strings for faithfulness/context_precision/context_recall. `contexts` here is
+    reconstructed via local retrieve_pdf_chunks() against the *same* chroma_data/
+    that was just deployed (verified identical: this ran right after confirming
+    the redeployed Space's push landed the rebuilt corpus) -- retrieval is
+    deterministic given the same corpus + embedding model + query, so this is
+    what production's own internal retrieval used, not an approximation of it.
+    Only `answer` is a genuine round-trip through the deployed instance.
+    """
+    import requests
+
+    vector_store = vector_store or VectorStore()
+    qa_pairs = []
+    for seed in REAL_QA_SEEDS:
+        retrieval = retrieve_pdf_chunks(seed["question"], vector_store)
+        response = requests.post(
+            f"{space_url}/agent/run", json={"query": seed["question"]}, timeout=90.0
+        )
+        response.raise_for_status()
+        answer = response.json()["answer"]
+        qa_pairs.append(
+            {
+                "question": seed["question"],
+                "contexts": [c.text for c in retrieval.chunks],
+                "answer": answer,
+                "ground_truth": seed["ground_truth"],
+            }
+        )
+    return qa_pairs
+
+
 def _default_ragas_llm():
     """HF Inference Providers via its OpenAI-compatible endpoint, reusing the
     same model/token this project's own HuggingFaceProvider uses for real
@@ -141,7 +184,13 @@ if __name__ == "__main__":
     from dotenv import load_dotenv
 
     load_dotenv()
-    pairs = build_real_qa_pairs()
+    if "--production" in sys.argv:
+        args = [a for a in sys.argv[1:] if a != "--production"]
+        space_url = args[0] if args else DEFAULT_SPACE_URL
+        print(f"Running against deployed Space: {space_url}\n")
+        pairs = build_real_qa_pairs_from_production(space_url)
+    else:
+        pairs = build_real_qa_pairs()
     for p in pairs:
         print(f"Q: {p['question']}\nA: {p['answer']}\n")
     scores = evaluate_rag_quality(pairs)

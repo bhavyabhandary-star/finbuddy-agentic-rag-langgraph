@@ -83,10 +83,13 @@ export already aligns with each PDF's actual clause structure) and rebuilding
 `chroma_data/` (379 → 1021 chunks). Verified for real, not assumed: the
 previously-failing query now ranks the correct clause #1, and re-running RAGAS
 confirms it — faithfulness 0.92 → 0.96, answer relevancy 0.67 → 0.81, context
-precision 0.67 → **0.97**, context recall 0.67 → **1.00**. Full before/after
-detail in `docs/ragas_eval_results.json`. One thing this fix has *not* yet
-reached: the currently-deployed HF Space still runs on the old, pre-fix
-`chroma_data/` until it's redeployed.
+precision 0.67 → **0.97**, context recall 0.67 → **1.00**. The fix is deployed
+and confirmed live: the Space was redeployed with the rebuilt `chroma_data/`,
+and `eval/ragas_eval.py --production` — which calls the deployed Space's real
+`/agent/run` endpoint for the answer — reproduces the fix in production
+(faithfulness 1.00, context precision 0.97, context recall 1.00; all three
+answers correct, including the previously-wrong DPDP consent question). Full
+before/after/production detail in `docs/ragas_eval_results.json`.
 
 ## Running it (once dependencies are installed)
 

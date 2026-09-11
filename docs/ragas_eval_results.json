@@ -22,6 +22,17 @@
         "context_recall": 1.0
       },
       "finding": "Fix verified for real, not assumed: re-ran retrieve_pdf_chunks for the exact same failing query against the rebuilt corpus (1021 chunks, up from 379) -- the Section 6(1) consent clause now ranks #1 (score 0.987), cleanly isolated with no splicing. All three RAGAS answers are now correct against their ground truths. Full pytest suite re-run after the corpus rebuild: still 27/30 passing, same pre-existing Claude-billing failures, no regressions from the chunking change."
+    },
+    {
+      "label": "after fix, confirmed against production -- redeployed HF Space with the rebuilt chroma_data/",
+      "scores": {
+        "faithfulness": 1.0,
+        "answer_relevancy": 0.7824,
+        "context_precision": 0.9722,
+        "context_recall": 1.0
+      },
+      "methodology_note": "answer is a genuine round-trip through the deployed Space's live /agent/run endpoint (eval/ragas_eval.py --production); contexts are reconstructed via local retrieve_pdf_chunks against the same chroma_data/ that was just redeployed (verified byte-identical -- the API doesn't expose raw retrieved-chunk text, only source filenames, so this is the one piece not a direct API round-trip). Retrieval is deterministic given the same corpus + embedding model + query, so this reflects exactly what production's own internal retrieval used.",
+      "finding": "All three production answers are correct against ground truth, including the previously-failing DPDP consent question. Scores consistent with the local post-fix run (small faithfulness/answer_relevancy variance is expected -- each is a fresh, non-deterministic LLM generation; context_precision/recall match exactly since they depend only on the corpus, which is identical)."
     }
   ],
   "fix_details": {
@@ -31,6 +42,6 @@
     "chroma_data_rebuilt": true,
     "chunk_count_before": 379,
     "chunk_count_after": 1021,
-    "deployment_note": "chroma_data/ is bundled into the HuggingFace Space deploy snapshot (scripts/prepare_hf_space_deploy.sh) -- the currently-deployed Space is still running on the OLD (pre-fix) corpus until it is redeployed with the rebuilt chroma_data/."
+    "deployment_note": "Deployed -- the HF Space was redeployed with the rebuilt chroma_data/ and the fix is confirmed live (see the 'confirmed against production' history entry above)."
   }
 }

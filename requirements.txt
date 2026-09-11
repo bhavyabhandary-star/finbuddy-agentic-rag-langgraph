@@ -45,6 +45,7 @@ langchain-community==0.3.31
 datasets>=3.0.0
 langchain-openai>=0.3.0
 langchain-huggingface>=0.1.0
+requests>=2.32.0  # eval/ragas_eval.py --production calls the deployed Space's API directly
 
 # Local-model fallback options (verified once, not the default demo path) —
 # Ollama (fully local) and/or HF Inference Providers (hosted, needs a paid HF
