@@ -320,11 +320,33 @@ use for the production FinBuddy Spaces deployment, for consistency).
 Walk through this list against the actual build; each unaddressed gap is a follow-up
 question waiting to happen:
 
-- [ ] **No iteration cap** — an agent loop without `max_steps` can retry indefinitely
-- [ ] **Vague tool descriptions** — the top cause of the model calling the wrong tool
-- [ ] **No confirmation gate** on any tool with a real side effect
-- [ ] **Only the happy path tested** — never testing tool failures means the first
-      real hiccup breaks the whole run
+- [x] **No iteration cap** — `MAX_LOOP_ITERATIONS = 3` (`agent/state.py`), enforced in
+      `_should_continue_retrieval`. Verified for real, not just read: called it
+      directly with `loop_count` 0→4 — retrieves through 2, escalates at 3 and
+      beyond. Never actually exercised until now; the mechanism existed but
+      nothing had run it to the cap before this check.
+- [x] **Vague tool descriptions** — doesn't apply to this build: no LLM ever
+      chooses a tool by reading a description (confirmed — no `@tool` /
+      `bind_tools` / LangChain tool-calling anywhere in the codebase). Routing
+      is the trained classical Intent Router; tool invocation is deterministic
+      LangGraph edges. This is exactly the failure surface "use AI/NLP only
+      when mandatory" was meant to remove.
+- [x] **No confirmation gate** — `require_confirmation()` exists in
+      `guardrails/tool_policy.py`, tested
+      (`test_require_confirmation_raises_without_confirmation`), and honestly
+      documented as not yet load-bearing: no tool in this MVP has a real-world
+      side effect (retrieval + read-only scoring calls only).
+- [x] **Only the happy path tested** — false for this build: real failure-path
+      tests exist and pass at every layer — tool failure
+      (`test_assess_credit_profile_falls_back_on_error`,
+      `test_credit_assessment_tool_failure_escalates_without_llm_call`),
+      off-topic / insufficient-context escalation
+      (`test_off_topic_query_escalates_without_llm_call`,
+      `test_generate_node_escalates_on_insufficient_context`), out-of-range
+      input (`test_assess_risk_trend_flags_out_of_range_input`), and
+      malformed-output recovery
+      (`test_validate_structured_output_retries_and_recovers`) — plus both
+      escalation paths re-verified live against the deployed HF Space.
 
 ## Debugging scenario worth rehearsing
 
