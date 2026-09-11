@@ -17,6 +17,7 @@ from agent.graph import build_graph
 from agent.nodes.generate import ClaudeProvider, HuggingFaceProvider, LLMProvider, OllamaProvider
 from ingestion.setu_feed import load_cached_real_profile
 from observability.tracing import trace_run
+from tools.schemas import CreditAssessmentResult
 
 load_dotenv()
 
@@ -95,6 +96,11 @@ class AgentRunResponse(BaseModel):
     top_score: float | None = None
     sufficient: bool | None = None
     loop_count: int | None = None
+    # Structured F-001/F-003/F-006/F-012 score data for a credit_assessment
+    # request -- the "answer" field is only the LLM's plain-English narration
+    # of this same data; a UI wanting a score hero / factor bars needs the
+    # numbers themselves, not a re-parse of prose.
+    credit_assessment: CreditAssessmentResult | None = None
 
 
 @app.get("/health")
@@ -138,6 +144,7 @@ def run_agent(request: AgentRunRequest) -> AgentRunResponse:
         top_score=result.get("top_score"),
         sufficient=result.get("sufficient"),
         loop_count=result.get("loop_count"),
+        credit_assessment=result.get("credit_assessment"),
     )
 
 
