@@ -1,0 +1,22 @@
+{
+  "provider": "OllamaProvider",
+  "model": "llama3.1",
+  "query": "why do you need my UPI transaction data",
+  "result": {
+    "query": "why do you need my UPI transaction data",
+    "route": "policy",
+    "retrieved_chunks": [
+      "text=\"FinBuddy needs your UPI transaction data to build an income story, as most gig workers don't have a traditional credit history.\" source='why_upi_data_needed.md' page=None score=0.91"
+    ],
+    "top_score": 0.91,
+    "sufficient": true,
+    "answer": "We need your UPI transaction data to build an income story, as most gig workers don't have a traditional credit history.",
+    "sources": [
+      "why_upi_data_needed.md"
+    ],
+    "confidence": 1.0,
+    "escalate_to_human": false,
+    "disclaimer": null
+  },
+  "elapsed_seconds": 100.00556421279907
+}

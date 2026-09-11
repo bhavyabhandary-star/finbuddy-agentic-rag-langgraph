@@ -186,12 +186,38 @@ answers the "why didn't you just retrain everything" question before it's asked.
 6. Wire the Intent Router + all four tools (2 RAG, 2 credit-assessment) into the
    LangGraph state machine from `kickoff_prompt.md`, with the Generate node still
    the only LLM call.
-7. Add the Intent Router's full MLOps loop (registry states, drift monitor on
-   misroute rate) and the Risk-Trend input-drift monitor (PSI, detect-only).
-8. Wire the evaluation harness, guardrail tests (including "credit-assessment tool
-   times out / production API is down" as an explicit tested failure case),
-   tracing, and CI gate from `kickoff_prompt.md`; verify the local-Ollama fallback
-   once and keep the proof.
+7. **[DONE]** Add the Intent Router's full MLOps loop (registry states, drift
+   monitor on misroute rate) and the Risk-Trend input-drift monitor (PSI,
+   detect-only). Verified for real: the registry's `registry_store/` has a real
+   staging→production promotion with a human signoff (89.5% held-out accuracy,
+   beat the 75% keyword baseline); the misroute-rate drift monitor was run
+   directly and correctly reports green/amber/red at the documented 10%/20%
+   thresholds; the Risk-Trend `check_input_drift` percentile-band check has
+   passing test coverage (`test_assess_risk_trend_flags_out_of_range_input`);
+   and the batch-PSI machinery (kept for a future dashboard, not used
+   per-request) was independently re-verified — 0.02 on a stable distribution,
+   4.94 on a mean-shifted one, and confirmed still unusable for single-request
+   scoring (a lone point scores ~12.4 regardless of whether it's typical or an
+   outlier) — exactly matching this module's own documented rationale.
+8. **[DONE]** Wire the evaluation harness, guardrail tests (including
+   "credit-assessment tool times out / production API is down" as an explicit
+   tested failure case), tracing, and CI gate from `kickoff_prompt.md`; verify
+   the local-Ollama fallback once and keep the proof. Verified for real: all 8
+   guardrail tests pass, including the named tool-failure case
+   (`test_credit_assessment_tool_failure_escalates_without_llm_call`); the eval
+   gate passes locally (100% routing accuracy) *and* for real on GitHub Actions
+   (checked via the Actions API — both the `pytest` and eval-gate steps
+   succeeded on actual CI infra with zero secrets configured, confirming the
+   per-provider credential-skip design in `tests/test_generate_integration.py`
+   works as intended); tracing is real, not stubbed — inspected actual `.jsonl`
+   trace files with genuine per-node decisions and confidences from real runs.
+   The local-Ollama fallback is now verified too: pulled `llama3.1` (4.9GB) and
+   ran a real, non-mocked call through `generate_node(state, provider=
+   OllamaProvider())` — correct grounded answer, correct source, no
+   hallucinated escalation, 100.0s elapsed (expected for CPU inference on an
+   8B model — confirms why this document's own resolved decision keeps it out
+   of the live demo path). Proof kept at
+   `docs/ollama_fallback_verification.json`.
 9. **[DONE]** Containerize and deploy to a **new** HuggingFace Space; confirm the
    existing production FinBuddy Spaces are untouched. Deployed to
    [huggingface.co/spaces/BhavyaBhandary/finbuddy-langgraph-agent](https://huggingface.co/spaces/BhavyaBhandary/finbuddy-langgraph-agent);
