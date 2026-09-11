@@ -9,6 +9,7 @@ import uuid
 
 from dotenv import load_dotenv
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from sse_starlette.sse import EventSourceResponse
 
@@ -20,6 +21,16 @@ from observability.tracing import trace_run
 load_dotenv()
 
 app = FastAPI(title="FinBuddy Agentic RAG (LangGraph)")
+
+# Public read-only demo API, no cookies/session auth to protect -- open CORS
+# is the right tradeoff here (a browser-hosted demo UI needs cross-origin
+# fetch access, and there's nothing origin-based auth would otherwise gate).
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["GET", "POST"],
+    allow_headers=["*"],
+)
 
 
 def _default_provider() -> LLMProvider:
@@ -72,6 +83,14 @@ class AgentRunResponse(BaseModel):
     confidence: float
     escalate_to_human: bool
     disclaimer: str | None = None
+    # Additive decision-trace fields, all optional so existing callers (the
+    # verified curl demo commands) are unaffected -- added for a UI that
+    # shows the real routing/retrieval decision, not just the final answer.
+    route: str | None = None
+    route_confidence: float | None = None
+    top_score: float | None = None
+    sufficient: bool | None = None
+    loop_count: int | None = None
 
 
 @app.get("/health")
@@ -109,6 +128,11 @@ def run_agent(request: AgentRunRequest) -> AgentRunResponse:
         confidence=result.get("confidence", 0.0),
         escalate_to_human=result.get("escalate_to_human", False),
         disclaimer=result.get("disclaimer"),
+        route=result.get("route"),
+        route_confidence=result.get("route_confidence"),
+        top_score=result.get("top_score"),
+        sufficient=result.get("sufficient"),
+        loop_count=result.get("loop_count"),
     )
 
 
