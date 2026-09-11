@@ -16,6 +16,12 @@ class AgentState(TypedDict, total=False):
     # input
     query: str
     session_id: str
+    # "en" | "hi" | "kn" -- only the Generate node's own answer text and the
+    # deterministic escalation/disclaimer strings honor this; routing and
+    # retrieval always run against the original (English) query text, since
+    # the Intent Router and the corpus's dense embeddings are both English-
+    # tuned -- translating the query itself would degrade both.
+    response_language: str
 
     # routing (mlops/intent_router)
     route: str  # "policy" | "credit_assessment" | "off_topic"

@@ -19,13 +19,25 @@ from agent.state import MAX_LOOP_ITERATIONS, AgentState
 from observability.tracing import RunTracer
 
 
-_DEFAULT_ESCALATION_MESSAGE = (
-    "I don't have a confident, verified answer to that. Let me connect you with a human coach."
-)
-_TOOL_ERROR_ESCALATION_MESSAGE = (
-    "I'm unable to reach FinBuddy's scoring system right now, so I can't give you a "
-    "verified assessment. Please try again shortly, or a human coach can help directly."
-)
+_DEFAULT_ESCALATION_MESSAGE = {
+    "en": "I don't have a confident, verified answer to that. Let me connect you with a human coach.",
+    "hi": "मेरे पास इसका भरोसेमंद, सत्यापित जवाब नहीं है। मैं आपको एक इंसान कोच से जोड़ती हूं।",
+    "kn": "ಇದಕ್ಕೆ ನನ್ನ ಬಳಿ ಖಚಿತ, ಪರಿಶೀಲಿತ ಉತ್ತರ ಇಲ್ಲ. ನಾನು ನಿಮ್ಮನ್ನು ಮಾನವ ಕೋಚ್‌ಗೆ ಸಂಪರ್ಕಿಸುತ್ತೇನೆ.",
+}
+_TOOL_ERROR_ESCALATION_MESSAGE = {
+    "en": (
+        "I'm unable to reach FinBuddy's scoring system right now, so I can't give you a "
+        "verified assessment. Please try again shortly, or a human coach can help directly."
+    ),
+    "hi": (
+        "मैं अभी FinBuddy के स्कोरिंग सिस्टम से जुड़ नहीं पा रही, इसलिए एक सत्यापित मूल्यांकन नहीं दे सकती। "
+        "कृपया थोड़ी देर बाद फिर कोशिश करें, या सीधे एक इंसान कोच से मदद लें।"
+    ),
+    "kn": (
+        "ಈಗ ನಾನು FinBuddy ಸ್ಕೋರಿಂಗ್ ವ್ಯವಸ್ಥೆಯನ್ನು ತಲುಪಲು ಸಾಧ್ಯವಾಗುತ್ತಿಲ್ಲ, ಆದ್ದರಿಂದ ಪರಿಶೀಲಿತ ಮೌಲ್ಯಮಾಪನ ನೀಡಲಾಗುವುದಿಲ್ಲ. "
+        "ದಯವಿಟ್ಟು ಸ್ವಲ್ಪ ಸಮಯದ ನಂತರ ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ, ಅಥವಾ ನೇರವಾಗಿ ಮಾನವ ಕೋಚ್ ಸಹಾಯ ಪಡೆಯಿರಿ."
+    ),
+}
 
 
 def _escalate_node(state: AgentState, tracer: RunTracer | None = None) -> AgentState:
@@ -33,12 +45,13 @@ def _escalate_node(state: AgentState, tracer: RunTracer | None = None) -> AgentS
     kickoff_prompt.md's production-FinBuddy example demonstrates (2s vs 9s), and
     it means a failed tool call is never narrated by an LLM as if it were data.
     """
+    language = state.get("response_language") or "en"
     credit_assessment = state.get("credit_assessment")
     if credit_assessment is not None and credit_assessment.tool_error:
-        message = _TOOL_ERROR_ESCALATION_MESSAGE
+        message = _TOOL_ERROR_ESCALATION_MESSAGE.get(language, _TOOL_ERROR_ESCALATION_MESSAGE["en"])
         reason = f"credit-assessment tool failed: {credit_assessment.tool_error}"
     else:
-        message = _DEFAULT_ESCALATION_MESSAGE
+        message = _DEFAULT_ESCALATION_MESSAGE.get(language, _DEFAULT_ESCALATION_MESSAGE["en"])
         reason = "off-topic or insufficiently-grounded query"
 
     if tracer:

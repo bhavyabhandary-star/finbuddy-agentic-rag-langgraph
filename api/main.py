@@ -64,6 +64,10 @@ _UPI_SIGNAL_KEYS = (
 class AgentRunRequest(BaseModel):
     query: str
     session_id: str | None = None
+    # "en" (default) | "hi" | "kn" -- only the Generate node's answer text and
+    # the deterministic escalation/disclaimer strings honor this; routing and
+    # retrieval always use the original query, see agent/state.py's note.
+    response_language: str = "en"
     # Present only for a credit-assessment request — the API layer, not the
     # agent, is responsible for collecting these (see agent/state.py's note).
     # risk_trend_delta_features must already be z-scored against the training
@@ -118,6 +122,7 @@ def run_agent(request: AgentRunRequest) -> AgentRunResponse:
             {
                 "query": request.query,
                 "session_id": session_id,
+                "response_language": request.response_language,
                 "credit_signals": _resolve_credit_signals(request),
                 "risk_trend_delta_features": request.risk_trend_delta_features,
             }
@@ -150,6 +155,7 @@ async def run_agent_stream(request: AgentRunRequest):
             initial_state = {
                 "query": request.query,
                 "session_id": session_id,
+                "response_language": request.response_language,
                 "credit_signals": _resolve_credit_signals(request),
                 "risk_trend_delta_features": request.risk_trend_delta_features,
             }

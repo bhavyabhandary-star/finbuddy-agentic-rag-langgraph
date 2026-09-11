@@ -33,6 +33,11 @@ guessing.
 - Never use protected attributes (gender, religion, caste, pincode) as reasoning.
 - Keep the answer under 4 sentences, plain language, no jargon.
 
+## LANGUAGE:
+Write the "answer" field in {language_name}, in simple everyday words a gig
+worker or small shopkeeper would use — not formal or technical language, even
+if the source text is technical or in English.
+
 ## DATA:
 {data}
 
@@ -122,11 +127,23 @@ class HuggingFaceProvider(LLMProvider):
         return response.choices[0].message.content
 
 
-CREDIT_ASSESSMENT_DISCLAIMER = (
-    "This is an AI-generated explanation of an automated assessment, not "
-    "financial advice. Treat it as decision-support — confirm any important "
-    "decision with FinBuddy support."
-)
+CREDIT_ASSESSMENT_DISCLAIMER = {
+    "en": (
+        "This is an AI-generated explanation of an automated assessment, not "
+        "financial advice. Treat it as decision-support — confirm any important "
+        "decision with FinBuddy support."
+    ),
+    "hi": (
+        "यह एक स्वचालित मूल्यांकन का AI-जनित स्पष्टीकरण है, वित्तीय सलाह नहीं है। "
+        "इसे केवल सहायक जानकारी मानें — कोई भी महत्वपूर्ण निर्णय लेने से पहले FinBuddy सहायता टीम से पुष्टि करें।"
+    ),
+    "kn": (
+        "ಇದು ಸ್ವಯಂಚಾಲಿತ ಮೌಲ್ಯಮಾಪನದ AI-ಸೃಜಿತ ವಿವರಣೆಯಾಗಿದೆ, ಹಣಕಾಸಿನ ಸಲಹೆಯಲ್ಲ. "
+        "ಇದನ್ನು ನಿರ್ಧಾರ-ಸಹಾಯವಾಗಿ ಮಾತ್ರ ಪರಿಗಣಿಸಿ — ಯಾವುದೇ ಮುಖ್ಯ ನಿರ್ಧಾರವನ್ನು FinBuddy ಬೆಂಬಲ ತಂಡದೊಂದಿಗೆ ಖಚಿತಪಡಿಸಿಕೊಳ್ಳಿ."
+    ),
+}
+
+LANGUAGE_NAMES = {"en": "English", "hi": "Hindi", "kn": "Kannada"}
 
 
 def _deterministic_sources(state: AgentState) -> list[str]:
@@ -169,7 +186,8 @@ def generate_node(
 ) -> AgentState:
     provider = provider or ClaudeProvider()
     data_section = _build_data_section(state)
-    system_prompt = SYSTEM_PROMPT_TEMPLATE.format(data=data_section)
+    language_name = LANGUAGE_NAMES.get(state.get("response_language") or "en", "English")
+    system_prompt = SYSTEM_PROMPT_TEMPLATE.format(data=data_section, language_name=language_name)
 
     raw = provider.complete(system_prompt, state["query"], MAX_OUTPUT_TOKENS)
 
@@ -192,7 +210,11 @@ def generate_node(
     # Disclaimer is fixed, code-appended text, never LLM-generated — same reason
     # production FinBuddy's low-confidence escalation string is fixed, not
     # LLM-translated: compliance-relevant wording must be guaranteed verbatim.
-    disclaimer = CREDIT_ASSESSMENT_DISCLAIMER if state.get("route") == "credit_assessment" else None
+    disclaimer = (
+        CREDIT_ASSESSMENT_DISCLAIMER.get(state.get("response_language") or "en", CREDIT_ASSESSMENT_DISCLAIMER["en"])
+        if state.get("route") == "credit_assessment"
+        else None
+    )
 
     if tracer:
         # Logging the actual answer (not just a confidence number) is what
