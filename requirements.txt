@@ -32,7 +32,19 @@ pandas>=2.2.0
 mlflow>=3.16.0
 
 # Evaluation
+# ragas 0.4.3 does `from langchain_community.chat_models.vertexai import
+# ChatVertexAI` unconditionally at import time (ragas/llms/base.py) -- that
+# submodule was removed from langchain-community's 0.4.x line as part of that
+# package's active deprecation. ragas itself declares no upper bound on
+# langchain-community, so a plain `pip install ragas` resolves the latest
+# (0.4.2) and crashes on `import ragas`. Verified: pinning langchain-community
+# to the last pre-0.4 release fixes the import; re-check this pin (and drop it
+# if no longer needed) whenever bumping ragas.
 ragas>=0.2.0
+langchain-community==0.3.31
+datasets>=3.0.0
+langchain-openai>=0.3.0
+langchain-huggingface>=0.1.0
 
 # Local-model fallback options (verified once, not the default demo path) —
 # Ollama (fully local) and/or HF Inference Providers (hosted, needs a paid HF

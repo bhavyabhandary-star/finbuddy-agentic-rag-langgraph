@@ -71,6 +71,18 @@ confirming all three routes (grounded policy answer with citation, off-topic
 refusal, insufficient-context escalation) work end to end in production — not
 just locally.
 
+The RAGAS evaluation (`eval/ragas_eval.py`) is also real now, not a stub: it
+runs real retrieval + real generation against the ingested corpus, judged by
+the same HF-hosted model this project uses for generation (no OpenAI
+dependency). Real scores: faithfulness 0.92, answer relevancy 0.67, context
+precision/recall 0.67 each. Running it surfaced a genuine retrieval-quality
+gap, not a clean pass: one of the three real queries (DPDP consent
+requirements) retrieved the wrong chunk — the correct clause exists in the
+corpus but never ranks in the top-15 candidates, because of a chunk-boundary
+issue (see `docs/ragas_eval_results.json` for the full breakdown). Reported
+honestly rather than cherry-picking a result — this is a known follow-up, not
+yet fixed.
+
 ## Running it (once dependencies are installed)
 
 ```bash
