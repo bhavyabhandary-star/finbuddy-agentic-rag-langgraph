@@ -2,31 +2,35 @@
   "run_at": "2026-09-11",
   "judge_llm": "Qwen/Qwen2.5-7B-Instruct via HF Inference Providers (featherless-ai) -- same model this project's HuggingFaceProvider uses for real generation",
   "embeddings": "all-MiniLM-L6-v2 -- same local model the retrieval pipeline itself runs on",
-  "scores": {
-    "faithfulness": 0.9167,
-    "answer_relevancy": 0.6741,
-    "context_precision": 0.6667,
-    "context_recall": 0.6667
-  },
-  "qa_pairs": [
+  "history": [
     {
-      "question": "What is the cap on Default Loss Guarantee (DLG) cover on a loan portfolio?",
-      "answer": "The cap on DLG cover on any outstanding portfolio is five percent of the total amount disbursed out of that loan portfolio at any given time.",
-      "ground_truth": "The total amount of DLG cover on any outstanding portfolio, specified upfront, shall not exceed five per cent of the total amount disbursed out of that loan portfolio at any given time.",
-      "assessment": "correct, well-grounded"
+      "label": "before fix -- fixed_size_chunks (200-word sliding window, 40-word overlap)",
+      "scores": {
+        "faithfulness": 0.9167,
+        "answer_relevancy": 0.6741,
+        "context_precision": 0.6667,
+        "context_recall": 0.6667
+      },
+      "finding": "The DPDP consent question retrieved the wrong chunk. Root cause: a real retrieval miss, not a generation hallucination -- the correct chunk (containing the exact 'free, specific, informed, unconditional, unambiguous' text) exists in the corpus (1 of 379 chunks) but never ranked in the top-15 dense-retrieval candidates for this query. The chunk itself spliced the tail of an unrelated notice-language clause together with the start of Section 6, diluting its embedding relevance. This was a chunking-boundary quality issue, not a bug in re-ranking or the sufficiency gate -- both correctly did their job on the (wrong) chunks they were given."
     },
     {
-      "question": "What must consent from a Data Principal look like under the DPDP Act?",
-      "answer": "Consent under the DPDP Act must be presented in clear and plain language, allowing the Data Principal to access the request in English or any language specified in the Eighth Schedule to the Constitution. It should also provide the contact details of a Data Protection Officer or another authorized person to respond to the Data Principal's communications.",
-      "ground_truth": "Consent must be free, specific, informed, unconditional and unambiguous with a clear affirmative action, and must signify agreement to processing personal data for a specified purpose, limited to the personal data necessary for that purpose.",
-      "assessment": "WRONG -- answered about notice/DPO-contact provisions, not the actual Section 6(1) consent-quality definition. Root cause: a real retrieval miss, not a generation hallucination -- the correct chunk (containing the exact 'free, specific, informed, unconditional, unambiguous' text) exists in the corpus (1 of 379 chunks) but never ranked in the top-15 dense-retrieval candidates for this query. The chunk itself splices the tail of an unrelated notice-language clause together with the start of Section 6, diluting its embedding relevance. This is a chunking-boundary quality issue, not a bug in re-ranking or the sufficiency gate -- both of those correctly did their job on the (wrong) chunks they were given."
-    },
-    {
-      "question": "Where must payment system data be stored under RBI's data storage rules?",
-      "answer": "Payment system data must be stored only in servers located within India, with compliance required within six months from the directive. There should also be a System Audit Report (SAR) submitted by December 31, 2018, to confirm adherence to these rules.",
-      "ground_truth": "All system providers must ensure that the entire data relating to payment systems operated by them, including full end-to-end transaction details, is stored in a system only in India (the foreign leg of a transaction, if any, may also be stored abroad).",
-      "assessment": "correct, well-grounded"
+      "label": "after fix -- semantic_chunks (blank-line paragraph boundaries, >=5-word filter)",
+      "scores": {
+        "faithfulness": 0.9583,
+        "answer_relevancy": 0.8114,
+        "context_precision": 0.9722,
+        "context_recall": 1.0
+      },
+      "finding": "Fix verified for real, not assumed: re-ran retrieve_pdf_chunks for the exact same failing query against the rebuilt corpus (1021 chunks, up from 379) -- the Section 6(1) consent clause now ranks #1 (score 0.987), cleanly isolated with no splicing. All three RAGAS answers are now correct against their ground truths. Full pytest suite re-run after the corpus rebuild: still 27/30 passing, same pre-existing Claude-billing failures, no regressions from the chunking change."
     }
   ],
-  "known_follow_up": "The DPDP consent-question retrieval miss suggests chunk-boundary tuning (smaller chunks, or splitting on section headers rather than a fixed token window) could improve recall for definitional/legal-clause queries. Not fixed as part of this eval run -- flagged for a deliberate follow-up decision, not folded in silently."
+  "fix_details": {
+    "root_cause": "ingestion/build_corpus.py used fixed_size_chunks (ingestion/chunking.py): a naive 200-word sliding window with 40-word overlap, oblivious to sentence/section boundaries -- it mechanically sliced across a real section boundary in DPDP_Act_2023.pdf.",
+    "fix": "Switched to the existing (previously unused) semantic_chunks function: splits on Docling's blank-line paragraph boundaries, which for these structured government PDFs already isolate each numbered clause/sub-section into its own paragraph (verified directly against the real extracted markdown). Added a >=5-word minimum filter to semantic_chunks after confirming every one of DPDP_Act_2023.pdf's 55 sub-5-word paragraphs was pure structural noise (chapter headers, '## Illustration.' markers, Hindi gazette boilerplate, bare cross-reference citations like '24 of 1997.') -- none of them real content.",
+    "files_changed": ["ingestion/chunking.py", "ingestion/build_corpus.py"],
+    "chroma_data_rebuilt": true,
+    "chunk_count_before": 379,
+    "chunk_count_after": 1021,
+    "deployment_note": "chroma_data/ is bundled into the HuggingFace Space deploy snapshot (scripts/prepare_hf_space_deploy.sh) -- the currently-deployed Space is still running on the OLD (pre-fix) corpus until it is redeployed with the rebuilt chroma_data/."
+  }
 }

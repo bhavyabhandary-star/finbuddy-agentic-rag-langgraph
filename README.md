@@ -74,14 +74,19 @@ just locally.
 The RAGAS evaluation (`eval/ragas_eval.py`) is also real now, not a stub: it
 runs real retrieval + real generation against the ingested corpus, judged by
 the same HF-hosted model this project uses for generation (no OpenAI
-dependency). Real scores: faithfulness 0.92, answer relevancy 0.67, context
-precision/recall 0.67 each. Running it surfaced a genuine retrieval-quality
-gap, not a clean pass: one of the three real queries (DPDP consent
-requirements) retrieved the wrong chunk — the correct clause exists in the
-corpus but never ranks in the top-15 candidates, because of a chunk-boundary
-issue (see `docs/ragas_eval_results.json` for the full breakdown). Reported
-honestly rather than cherry-picking a result — this is a known follow-up, not
-yet fixed.
+dependency). It initially surfaced a genuine retrieval-quality gap, not a clean
+pass: one of three real queries (DPDP consent requirements) retrieved the
+wrong chunk, because `fixed_size_chunks`'s 200-word sliding window sliced
+across a real section boundary. Fixed by switching `ingestion/build_corpus.py`
+to `semantic_chunks` (paragraph-boundary splitting, which Docling's markdown
+export already aligns with each PDF's actual clause structure) and rebuilding
+`chroma_data/` (379 → 1021 chunks). Verified for real, not assumed: the
+previously-failing query now ranks the correct clause #1, and re-running RAGAS
+confirms it — faithfulness 0.92 → 0.96, answer relevancy 0.67 → 0.81, context
+precision 0.67 → **0.97**, context recall 0.67 → **1.00**. Full before/after
+detail in `docs/ragas_eval_results.json`. One thing this fix has *not* yet
+reached: the currently-deployed HF Space still runs on the old, pre-fix
+`chroma_data/` until it's redeployed.
 
 ## Running it (once dependencies are installed)
 
