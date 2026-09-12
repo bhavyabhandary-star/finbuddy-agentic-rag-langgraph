@@ -91,6 +91,40 @@ and `eval/ragas_eval.py --production` — which calls the deployed Space's real
 answers correct, including the previously-wrong DPDP consent question). Full
 before/after/production detail in `docs/ragas_eval_results.json`.
 
+## Language support
+
+`response_language` accepts `en`, `hi`, and `kn` (`agent/nodes/generate.py`'s
+`LANGUAGE_NAMES`) — but the three are handled very differently, based on real
+testing against the deployed Space's provider, not assumption:
+
+- **English (`en`)** — real generation, no known issues.
+- **Hindi (`hi`)** — real generation. A guardrail
+  (`guardrails/output_guardrails.py::is_expected_script`) retries once if the
+  model answers in the wrong script entirely, then falls back to a fixed
+  message if the retry also fails. Real production testing still occasionally
+  turns up smaller leaked-token noise (a stray foreign word or character)
+  inside an otherwise-correct-script answer — the wrong-script guardrail can't
+  catch that, and it's an accepted, known limitation rather than a bug being
+  chased further.
+- **Kannada (`kn`)** — generation is skipped unconditionally. `generate_node`
+  never calls the LLM provider for a `kn` request; it always returns a fixed,
+  human-authored fallback answer telling the user to ask in English instead.
+  This is stronger than Hindi's handling because real testing showed Kannada
+  output broken at a deeper level: even when the model happened to land in
+  correct Kannada Unicode script, the content itself was incoherent gibberish,
+  not real Kannada — no retry can fix that. Kept UI-disabled ("coming soon")
+  in `ui/finbuddy_console.html` for the same reason.
+- **Tamil and Telugu are out of scope** — not in `LANGUAGE_NAMES`, no UI entry.
+  An early real test of both surfaced the same wrong-script/gibberish failures,
+  more severely (including stray CJK characters).
+
+This is a model-capability limitation, not a prompt bug: the system prompt
+template in `agent/nodes/generate.py` was checked directly and contains
+nothing that could cause these leaks. It stems from the deployed Space
+defaulting to `LLM_PROVIDER=huggingface` (a free-tier ~7B open model) rather
+than `claude`, since Claude API billing isn't set up for this deployment —
+see the provider setup below.
+
 ## Running it (once dependencies are installed)
 
 ```bash
