@@ -60,7 +60,7 @@
   .app {
     display: flex;
     flex-direction: column;
-    height: 100vh;
+    min-height: 100vh;
     max-width: 640px;
     margin: 0 auto;
     background: var(--bg);
@@ -74,6 +74,135 @@
     padding: 14px 18px;
     border-bottom: 1px solid var(--line);
     gap: 10px;
+    position: sticky;
+    top: 0;
+    background: var(--bg);
+    z-index: 5;
+  }
+
+  /* ---------- Section cards (credit assessment + result) ---------- */
+  main { padding: 16px 16px 4px; display: flex; flex-direction: column; gap: 16px; }
+  .section-card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 18px 16px;
+    box-shadow: var(--shadow);
+  }
+  .section-card h2 {
+    font-family: 'Source Serif 4', serif;
+    font-size: 17px;
+    font-weight: 600;
+    margin: 0 0 4px;
+  }
+  .section-hint {
+    font-size: 12.5px;
+    color: var(--slate);
+    margin: 0 0 14px;
+    line-height: 1.5;
+  }
+
+  .persona-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 14px; }
+  .persona-card {
+    background: var(--surface-sunken);
+    border: 1.5px solid var(--line);
+    border-radius: 10px;
+    padding: 10px 8px;
+    text-align: center;
+    cursor: pointer;
+    font-family: inherit;
+    color: var(--ink);
+  }
+  .persona-card.active { border-color: var(--navy); background: var(--gold-soft); }
+  .persona-card .emoji { font-size: 20px; display: block; margin-bottom: 4px; }
+  .persona-card .p-name { font-size: 12.5px; font-weight: 600; display: block; }
+  .persona-card .p-sub { font-size: 10.5px; color: var(--slate); display: block; margin-top: 1px; }
+
+  .fields-toggle {
+    background: none; border: none; color: var(--focus);
+    font-family: inherit; font-size: 12.5px; padding: 0;
+    cursor: pointer; text-decoration: underline; text-decoration-style: dotted;
+    margin-bottom: 12px;
+  }
+  .field-grid {
+    display: none;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 14px;
+  }
+  .field-grid.open { display: grid; }
+  .field-grid .field-full { grid-column: 1 / -1; }
+  .field-grid label {
+    font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.05em;
+    color: var(--slate); font-weight: 600; display: block; margin-bottom: 4px;
+  }
+  .field-grid input, .field-grid select {
+    width: 100%; padding: 8px 10px; border-radius: 8px;
+    border: 1px solid var(--line); background: var(--surface-sunken);
+    color: var(--ink); font-family: inherit; font-size: 13.5px;
+    font-variant-numeric: tabular-nums;
+  }
+  .field-grid input:focus-visible, .field-grid select:focus-visible {
+    outline: 2px solid var(--focus); outline-offset: 1px;
+  }
+
+  .primary-btn {
+    width: 100%;
+    background: var(--navy); color: var(--navy-ink);
+    border: none; border-radius: 12px; padding: 13px;
+    font-family: inherit; font-weight: 600; font-size: 15px;
+    cursor: pointer;
+  }
+  .primary-btn:disabled { opacity: 0.55; cursor: default; }
+  .primary-btn:not(:disabled):hover { opacity: 0.9; }
+
+  .error-banner {
+    background: var(--red-soft); border: 1px solid var(--red); color: var(--ink);
+    border-radius: 8px; padding: 9px 12px; font-size: 13px; margin-top: 10px;
+  }
+
+  /* ---------- Result card ---------- */
+  .score-hero { display: flex; align-items: baseline; gap: 8px; margin-bottom: 8px; }
+  .score-hero .value {
+    font-family: 'Source Serif 4', serif; font-size: 40px; font-weight: 600;
+    letter-spacing: -0.01em; font-variant-numeric: tabular-nums;
+  }
+  .score-hero .range { color: var(--slate); font-size: 13px; }
+  .score-bar-track { height: 8px; border-radius: 4px; background: var(--line); overflow: hidden; margin-bottom: 3px; }
+  .score-bar-fill { height: 100%; border-radius: 4px; background: var(--navy); }
+  .score-scale { display: flex; justify-content: space-between; color: var(--slate); font-size: 10.5px; margin-bottom: 12px; }
+
+  .status-chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 4px 11px; border-radius: 999px; font-size: 13px; font-weight: 600;
+    margin-bottom: 12px; margin-right: 6px;
+  }
+  .status-chip.good { color: var(--green); background: var(--green-soft); border: 1px solid var(--green); }
+  .status-chip.bad { color: var(--red); background: var(--red-soft); border: 1px solid var(--red); }
+  .status-chip.warn { color: var(--amber); background: var(--amber-soft); border: 1px solid var(--amber); }
+
+  .repay-line { font-size: 13px; color: var(--ink-soft); margin: 0 0 4px; }
+  .repay-line b { font-variant-numeric: tabular-nums; }
+
+  .factors-heading {
+    font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em;
+    color: var(--slate); font-weight: 600; margin: 16px 0 4px;
+  }
+  .factor-row { display: flex; gap: 10px; padding: 10px 0; border-top: 1px solid var(--surface-sunken); }
+  .factor-row:first-of-type { border-top: none; }
+  .factor-row .sign {
+    font-weight: 700; width: 18px; flex-shrink: 0; text-align: center;
+    font-variant-numeric: tabular-nums; font-size: 15px; padding-top: 1px;
+  }
+  .factor-row .sign.pos { color: var(--green); }
+  .factor-row .sign.neg { color: var(--red); }
+  .factor-row .f-body p { margin: 0 0 3px; font-size: 13.5px; }
+  .factor-row .f-body .f-action { color: var(--slate); font-size: 12px; }
+
+  .result-meta {
+    display: flex; gap: 14px; flex-wrap: wrap;
+    color: var(--slate); font-size: 11px; margin-top: 14px;
+    padding-top: 10px; border-top: 1px dashed var(--line);
   }
   .brand { display: flex; align-items: center; gap: 8px; min-width: 0; }
   .brand .badge {
@@ -137,10 +266,12 @@
   }
 
   /* ---------- Thread ---------- */
+  .chat-section { display: flex; flex-direction: column; }
   .thread {
-    flex: 1;
+    max-height: 46vh;
+    min-height: 90px;
     overflow-y: auto;
-    padding: 18px 16px;
+    padding: 4px 2px 8px;
     display: flex;
     flex-direction: column;
     gap: 14px;
@@ -267,8 +398,8 @@
   /* ---------- Composer ---------- */
   .composer-area {
     border-top: 1px solid var(--line);
-    padding: 12px 16px 16px;
-    background: var(--bg);
+    padding-top: 12px;
+    margin-top: 4px;
   }
   .hint {
     font-size: 12px;
@@ -351,16 +482,37 @@
     </div>
   </header>
 
-  <div class="thread" id="thread"></div>
+  <main>
+    <section class="section-card" id="creditCard">
+      <h2 id="creditHeading"></h2>
+      <p class="section-hint" id="creditHint"></p>
 
-  <div class="composer-area">
-    <p class="hint" id="hintText" style="display:none;"></p>
-    <div class="chips" id="chips"></div>
-    <div class="composer">
-      <textarea id="input" rows="1" aria-label="Message"></textarea>
-      <button class="send-btn" id="sendBtn"></button>
-    </div>
-  </div>
+      <div class="persona-row" id="personaRow"></div>
+
+      <button class="fields-toggle" id="fieldsToggle" type="button"></button>
+      <div class="field-grid" id="fieldGrid"></div>
+
+      <button class="primary-btn" id="scoreBtn"></button>
+      <div class="error-banner" id="creditError" style="display:none;"></div>
+    </section>
+
+    <section class="section-card" id="resultCard" style="display:none;"></section>
+
+    <section class="section-card chat-section">
+      <h2 id="chatHeading"></h2>
+      <p class="section-hint" id="chatHint"></p>
+      <div class="thread" id="thread"></div>
+
+      <div class="composer-area">
+        <p class="hint" id="hintText" style="display:none;"></p>
+        <div class="chips" id="chips"></div>
+        <div class="composer">
+          <textarea id="input" rows="1" aria-label="Message"></textarea>
+          <button class="send-btn" id="sendBtn"></button>
+        </div>
+      </div>
+    </section>
+  </main>
 </div>
 
 <script>
@@ -395,6 +547,42 @@
       ],
       errHttp: (code) => `Something went wrong on my end (error ${code}). If the app just woke up, please try again in a few seconds.`,
       errNetwork: "I couldn't connect. The app may be waking up after resting — this can take about a minute the first time. Please try again.",
+      creditHeading: 'Get a credit assessment',
+      creditHint: "Pick someone like you, or enter your own numbers. This calls FinBuddy's real, already-approved scoring system — not a demo mock.",
+      chatHeading: 'Ask FinBuddy a question',
+      chatHint: "Grounded in FinBuddy's real RBI/DPDP policy corpus — if it doesn't know, it says so instead of guessing.",
+      fieldsShow: 'Edit the numbers yourself',
+      fieldsHide: 'Hide the numbers',
+      scoreBtn: 'Get my score',
+      scoreBtnLoading: 'Checking…',
+      fields: {
+        avg_monthly_income: 'Avg monthly income (₹)',
+        income_regularity_score: 'Income regularity (0–1)',
+        tx_count_30d: 'UPI transactions / 30 days',
+        merchant_diversity: 'Different shops paid',
+        balance_dip_frequency: 'Times balance ran low',
+        b2b_ratio: 'Share paid to businesses (0–1)',
+        avg_transaction_size: 'Avg. payment size (₹)',
+        tenure_months: 'Months of UPI history',
+        geography: 'Area type',
+      },
+      geographyOptions: { urban: 'Urban', semi_urban: 'Semi-urban', rural: 'Rural' },
+      creditErr: (msg) => `Couldn't get a score: ${msg}`,
+      resultHeading: 'Your assessment',
+      approved: 'Approved',
+      notApproved: 'Not approved yet',
+      anomalyWarn: 'Unusual UPI pattern flagged',
+      repayLine: (pct) => `Chance of repaying on time: ${pct}%`,
+      factorsHeading: 'Why this result',
+      metaLatency: (ms) => `Scored in ${ms}ms`,
+      metaFair: 'Fairness-checked decision',
+      metaPlain: 'Plain threshold (no area given)',
+      metaBand: (band) => `Income band: ${band}`,
+      personas: {
+        rajesh: { name: 'Rajesh', sub: 'Delivery rider · Bengaluru' },
+        meena: { name: 'Meena', sub: 'Kirana shop owner · Chennai' },
+        custom: { name: 'Custom', sub: 'Your own numbers' },
+      },
     },
     hi: {
       brand: 'फिनबडी',
@@ -424,11 +612,85 @@
       ],
       errHttp: (code) => `मेरी तरफ़ से कुछ गड़बड़ हो गई (एरर ${code})। अगर ऐप अभी जगी है, तो कुछ सेकंड में फिर कोशिश करें।`,
       errNetwork: 'मैं कनेक्ट नहीं हो पाई। ऐप सो कर उठ रही हो सकती है — पहली बार में करीब एक मिनट लग सकता है। कृपया फिर कोशिश करें।',
+      creditHeading: 'क्रेडिट आकलन करवाएं',
+      creditHint: 'अपने जैसा कोई चुनें, या अपने नंबर डालें। यह FinBuddy के असली, पहले से स्वीकृत स्कोरिंग सिस्टम को कॉल करता है — डेमो नकली नहीं।',
+      chatHeading: 'FinBuddy से सवाल पूछें',
+      chatHint: 'FinBuddy के असली RBI/DPDP नीति दस्तावेज़ों पर आधारित — अगर पता नहीं है, तो अंदाज़ा लगाने के बजाय साफ़ बता देती है।',
+      fieldsShow: 'नंबर खुद बदलें',
+      fieldsHide: 'नंबर छुपाएं',
+      scoreBtn: 'मेरा स्कोर देखें',
+      scoreBtnLoading: 'देख रही हूं…',
+      fields: {
+        avg_monthly_income: 'औसत मासिक आय (₹)',
+        income_regularity_score: 'आय की नियमितता (0–1)',
+        tx_count_30d: 'UPI लेनदेन / 30 दिन',
+        merchant_diversity: 'अलग-अलग दुकानों को भुगतान',
+        balance_dip_frequency: 'बैलेंस कम होने की बार',
+        b2b_ratio: 'व्यवसायों को भुगतान का हिस्सा (0–1)',
+        avg_transaction_size: 'औसत भुगतान राशि (₹)',
+        tenure_months: 'UPI इतिहास (महीने)',
+        geography: 'इलाके का प्रकार',
+      },
+      geographyOptions: { urban: 'शहरी', semi_urban: 'अर्ध-शहरी', rural: 'ग्रामीण' },
+      creditErr: (msg) => `स्कोर नहीं मिल पाया: ${msg}`,
+      resultHeading: 'आपका आकलन',
+      approved: 'स्वीकृत',
+      notApproved: 'अभी स्वीकृत नहीं',
+      anomalyWarn: 'असामान्य UPI पैटर्न मिला',
+      repayLine: (pct) => `समय पर चुकाने की संभावना: ${pct}%`,
+      factorsHeading: 'यह नतीजा क्यों',
+      metaLatency: (ms) => `${ms}ms में स्कोर मिला`,
+      metaFair: 'निष्पक्षता-जांचा गया निर्णय',
+      metaPlain: 'सामान्य सीमा (इलाका नहीं दिया गया)',
+      metaBand: (band) => `आय श्रेणी: ${band}`,
+      personas: {
+        rajesh: { name: 'राजेश', sub: 'डिलीवरी राइडर · बेंगलुरु' },
+        meena: { name: 'मीना', sub: 'किराना दुकान मालिक · चेन्नई' },
+        custom: { name: 'कस्टम', sub: 'अपने नंबर डालें' },
+      },
     },
+  };
+
+  // Real UPI-signal presets matching production FinBuddy's own scoring API
+  // contract (avg_monthly_income..tenure_months + geography) -- same shape
+  // as customer_ui/PRESETS in the production repo, reused here read-only
+  // (values only, no code copied) since this project never modifies that
+  // repo. Sent through THIS project's own /agent/run (credit_signals), not
+  // the scoring API directly -- that's what actually demonstrates the
+  // agentic orchestration (Intent Router, guardrails, disclaimer) instead
+  // of just duplicating the production customer UI's direct-call pattern.
+  const PERSONAS = {
+    rajesh: {
+      emoji: '🛺',
+      avg_monthly_income: 20000, income_regularity_score: 0.82, tx_count_30d: 400,
+      merchant_diversity: 12, balance_dip_frequency: 2, b2b_ratio: 0.15,
+      avg_transaction_size: 50, tenure_months: 6, geography: 'urban',
+    },
+    meena: {
+      emoji: '🛒',
+      avg_monthly_income: 37000, income_regularity_score: 0.91, tx_count_30d: 900,
+      merchant_diversity: 28, balance_dip_frequency: 0, b2b_ratio: 0.65,
+      avg_transaction_size: 210, tenure_months: 12, geography: 'urban',
+    },
+    custom: {
+      emoji: '✏️',
+      avg_monthly_income: 15000, income_regularity_score: 0.5, tx_count_30d: 100,
+      merchant_diversity: 8, balance_dip_frequency: 3, b2b_ratio: 0.1,
+      avg_transaction_size: 150, tenure_months: 3, geography: 'semi_urban',
+    },
+  };
+  const FIELD_ORDER = [
+    'avg_monthly_income', 'income_regularity_score', 'tx_count_30d', 'merchant_diversity',
+    'balance_dip_frequency', 'b2b_ratio', 'avg_transaction_size', 'tenure_months',
+  ];
+  const NUM_STEP = {
+    income_regularity_score: '0.01', b2b_ratio: '0.01',
   };
 
   let currentLang = 'en';
   const S = () => STRINGS[currentLang];
+  let selectedPersona = 'rajesh';
+  let formValues = { ...PERSONAS.rajesh };
 
   const thread = document.getElementById('thread');
   const input = document.getElementById('input');
@@ -439,6 +701,16 @@
   const hintText = document.getElementById('hintText');
   const chipsEl = document.getElementById('chips');
   const langSwitch = document.getElementById('langSwitch');
+  const creditHeading = document.getElementById('creditHeading');
+  const creditHint = document.getElementById('creditHint');
+  const chatHeading = document.getElementById('chatHeading');
+  const chatHint = document.getElementById('chatHint');
+  const personaRow = document.getElementById('personaRow');
+  const fieldsToggle = document.getElementById('fieldsToggle');
+  const fieldGrid = document.getElementById('fieldGrid');
+  const scoreBtn = document.getElementById('scoreBtn');
+  const creditError = document.getElementById('creditError');
+  const resultCard = document.getElementById('resultCard');
 
   let sessionId = null;
   try { sessionId = crypto.randomUUID(); } catch (e) { sessionId = 'sess-' + Math.random().toString(36).slice(2); }
@@ -465,7 +737,144 @@
     chipsEl.innerHTML = s.chips.map((c, i) =>
       `<button class="chip" data-idx="${i}">${escapeHtml(c.label)}</button>`
     ).join('');
+
+    creditHeading.textContent = s.creditHeading;
+    creditHint.textContent = s.creditHint;
+    chatHeading.textContent = s.chatHeading;
+    chatHint.textContent = s.chatHint;
+    scoreBtn.textContent = scoreBtn.disabled && scoreBtn.dataset.loading ? s.scoreBtnLoading : s.scoreBtn;
+    renderPersonaRow();
+    renderFieldGrid();
+    updateFieldsToggleLabel();
   }
+
+  function renderPersonaRow() {
+    const s = S();
+    personaRow.innerHTML = Object.keys(PERSONAS).map((key) => {
+      const p = PERSONAS[key];
+      const label = s.personas[key];
+      return `<button class="persona-card${key === selectedPersona ? ' active' : ''}" data-persona="${key}" type="button">
+        <span class="emoji">${p.emoji}</span>
+        <span class="p-name">${escapeHtml(label.name)}</span>
+        <span class="p-sub">${escapeHtml(label.sub)}</span>
+      </button>`;
+    }).join('');
+  }
+
+  function updateFieldsToggleLabel() {
+    const s = S();
+    const open = fieldGrid.classList.contains('open');
+    fieldsToggle.textContent = open ? s.fieldsHide : s.fieldsShow;
+  }
+
+  function renderFieldGrid() {
+    const s = S();
+    const rows = FIELD_ORDER.map((key) => `
+      <div class="field">
+        <label>${escapeHtml(s.fields[key])}</label>
+        <input type="number" data-field="${key}" value="${formValues[key]}" step="${NUM_STEP[key] || '1'}" min="0">
+      </div>
+    `).join('');
+    const geoOptions = Object.keys(s.geographyOptions).map((k) =>
+      `<option value="${k}" ${formValues.geography === k ? 'selected' : ''}>${escapeHtml(s.geographyOptions[k])}</option>`
+    ).join('');
+    fieldGrid.innerHTML = rows + `
+      <div class="field field-full">
+        <label>${escapeHtml(s.fields.geography)}</label>
+        <select data-field="geography">${geoOptions}</select>
+      </div>`;
+  }
+
+  personaRow.addEventListener('click', (e) => {
+    const btn = e.target.closest('.persona-card');
+    if (!btn) return;
+    selectedPersona = btn.dataset.persona;
+    formValues = { ...PERSONAS[selectedPersona] };
+    renderPersonaRow();
+    renderFieldGrid();
+    if (selectedPersona === 'custom' && !fieldGrid.classList.contains('open')) {
+      fieldGrid.classList.add('open');
+      updateFieldsToggleLabel();
+    }
+  });
+
+  fieldsToggle.addEventListener('click', () => {
+    fieldGrid.classList.toggle('open');
+    updateFieldsToggleLabel();
+  });
+
+  fieldGrid.addEventListener('input', (e) => {
+    const el = e.target.closest('[data-field]');
+    if (!el) return;
+    formValues[el.dataset.field] = el.tagName === 'SELECT' ? el.value : Number(el.value);
+  });
+
+  function renderResultCard(data) {
+    const s = S();
+    const c = data.credit_assessment;
+    if (!c) { resultCard.style.display = 'none'; return; }
+    const pct = Math.max(0, Math.min(100, ((c.credit_score - 300) / (850 - 300)) * 100));
+    const repayPct = Math.round(c.calibrated_probability_of_repayment * 100);
+
+    let html = `<h2>${s.resultHeading}</h2>`;
+    html += `<div class="score-hero"><span class="value">${c.credit_score}</span><span class="range">/ 850</span></div>`;
+    html += `<div class="score-bar-track"><div class="score-bar-fill" style="width:${pct}%"></div></div>`;
+    html += `<div class="score-scale"><span>300</span><span>850</span></div>`;
+    html += `<span class="status-chip ${c.approved ? 'good' : 'bad'}">${c.approved ? '✓ ' + s.approved : '✕ ' + s.notApproved}</span>`;
+    if (c.is_anomalous) {
+      html += `<span class="status-chip warn">⚠ ${s.anomalyWarn}</span>`;
+    }
+    html += `<p class="repay-line">${s.repayLine(repayPct)}</p>`;
+    html += `<div class="factors-heading">${s.factorsHeading}</div>`;
+    c.top_3_factors.forEach((f) => {
+      const pos = f.direction === 'positive';
+      html += `<div class="factor-row">
+        <span class="sign ${pos ? 'pos' : 'neg'}">${pos ? '+' : '−'}</span>
+        <div class="f-body"><p>${escapeHtml(f.plain_english)}</p><p class="f-action">${escapeHtml(f.action)}</p></div>
+      </div>`;
+    });
+    html += `<div class="result-meta">
+      <span>${s.metaLatency(Math.round(c.latency_ms))}</span>
+      <span>${c.fairness_mitigation_applied ? s.metaFair : s.metaPlain}</span>
+      <span>${s.metaBand(c.income_band)}</span>
+    </div>`;
+
+    resultCard.innerHTML = html;
+    resultCard.style.display = 'block';
+    resultCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
+  async function runCreditAssessment() {
+    creditError.style.display = 'none';
+    scoreBtn.disabled = true;
+    scoreBtn.dataset.loading = '1';
+    scoreBtn.textContent = S().scoreBtnLoading;
+    try {
+      const res = await fetch(API_BASE + '/agent/run', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          query: 'Can I get a loan?',
+          session_id: sessionId,
+          response_language: currentLang,
+          credit_signals: { ...formValues },
+        }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      if (!data.credit_assessment) throw new Error(data.answer || 'no assessment returned');
+      renderResultCard(data);
+    } catch (e) {
+      creditError.textContent = S().creditErr(e.message);
+      creditError.style.display = 'block';
+    } finally {
+      scoreBtn.disabled = false;
+      delete scoreBtn.dataset.loading;
+      scoreBtn.textContent = S().scoreBtn;
+    }
+  }
+
+  scoreBtn.addEventListener('click', runCreditAssessment);
 
   function renderGreeting() {
     thread.innerHTML = '';
