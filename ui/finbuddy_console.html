@@ -1,518 +1,113 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Ask FinBuddy</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,500;8..60,600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&family=Noto+Sans+Devanagari:wght@400;500;600&family=Noto+Sans+Kannada:wght@400;500;600&display=swap');
-
-  :root {
-    --bg: #FBFAF7;
-    --surface: #FFFFFF;
-    --surface-sunken: #F3F1EA;
-    --ink: #15202E;
-    --ink-soft: #3C4A5E;
-    --slate: #5A6B85;
-    --line: #E3E1D9;
-    --navy: #0F1F3D;
-    --navy-ink: #FFFFFF;
-    --gold: #9C7A21;
-    --gold-soft: #F4ECD8;
-    --green: #2E7D4F;
-    --green-soft: #E4F1E9;
-    --amber: #A8681E;
-    --amber-soft: #FBEEDD;
-    --red: #A3402B;
-    --red-soft: #FBE9E4;
-    --focus: #2E5AAC;
-    --shadow: 0 1px 2px rgba(21,32,46,0.06), 0 6px 20px rgba(21,32,46,0.05);
-  }
-
-  @media (prefers-color-scheme: dark) {
-    :root:not([data-theme="light"]) {
-      --bg: #0B1420; --surface: #121F33; --surface-sunken: #0E1826;
-      --ink: #E8ECF3; --ink-soft: #C3CEDF; --slate: #92A2BC; --line: #22314C;
-      --navy: #1B3768; --navy-ink: #EAF0FA; --gold: #D9B764; --gold-soft: #26210F;
-      --green: #6FCB94; --green-soft: #12261B; --amber: #E0A860; --amber-soft: #2A2011;
-      --red: #E28A76; --red-soft: #2A1815; --focus: #7FA6E8;
-      --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 24px rgba(0,0,0,0.35);
-    }
-  }
-  :root[data-theme="dark"] {
-    --bg: #0B1420; --surface: #121F33; --surface-sunken: #0E1826;
-    --ink: #E8ECF3; --ink-soft: #C3CEDF; --slate: #92A2BC; --line: #22314C;
-    --navy: #1B3768; --navy-ink: #EAF0FA; --gold: #D9B764; --gold-soft: #26210F;
-    --green: #6FCB94; --green-soft: #12261B; --amber: #E0A860; --amber-soft: #2A2011;
-    --red: #E28A76; --red-soft: #2A1815; --focus: #7FA6E8;
-    --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 24px rgba(0,0,0,0.35);
-  }
-
-  * { box-sizing: border-box; }
-  html, body { height: 100%; }
-  body {
-    margin: 0;
-    background: var(--bg);
-    color: var(--ink);
-    font-family: 'IBM Plex Sans', 'Noto Sans Devanagari', 'Noto Sans Kannada', system-ui, sans-serif;
-    font-size: 16px;
-    line-height: 1.6;
-    -webkit-font-smoothing: antialiased;
-  }
-
-  .app {
-    display: flex;
-    flex-direction: column;
-    min-height: 100vh;
-    max-width: 640px;
-    margin: 0 auto;
-    background: var(--bg);
-  }
-
-  /* ---------- Header ---------- */
-  header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 14px 18px;
-    border-bottom: 1px solid var(--line);
-    gap: 10px;
-    position: sticky;
-    top: 0;
-    background: var(--bg);
-    z-index: 5;
-  }
-
-  /* ---------- Section cards (credit assessment + result) ---------- */
-  main { padding: 16px 16px 4px; display: flex; flex-direction: column; gap: 16px; }
-  .section-card {
-    background: var(--surface);
-    border: 1px solid var(--line);
-    border-radius: 14px;
-    padding: 18px 16px;
-    box-shadow: var(--shadow);
-  }
-  .section-card h2 {
-    font-family: 'Source Serif 4', serif;
-    font-size: 17px;
-    font-weight: 600;
-    margin: 0 0 4px;
-  }
-  .section-hint {
-    font-size: 12.5px;
-    color: var(--slate);
-    margin: 0 0 14px;
-    line-height: 1.5;
-  }
-
-  .persona-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 14px; }
-  .persona-card {
-    background: var(--surface-sunken);
-    border: 1.5px solid var(--line);
-    border-radius: 10px;
-    padding: 10px 8px;
-    text-align: center;
-    cursor: pointer;
-    font-family: inherit;
-    color: var(--ink);
-  }
-  .persona-card.active { border-color: var(--navy); background: var(--gold-soft); }
-  .persona-card .emoji { font-size: 20px; display: block; margin-bottom: 4px; }
-  .persona-card .p-name { font-size: 12.5px; font-weight: 600; display: block; }
-  .persona-card .p-sub { font-size: 10.5px; color: var(--slate); display: block; margin-top: 1px; }
-
-  .fields-toggle {
-    background: none; border: none; color: var(--focus);
-    font-family: inherit; font-size: 12.5px; padding: 0;
-    cursor: pointer; text-decoration: underline; text-decoration-style: dotted;
-    margin-bottom: 12px;
-  }
-  .field-grid {
-    display: none;
-    grid-template-columns: 1fr 1fr;
-    gap: 10px;
-    margin-bottom: 14px;
-  }
-  .field-grid.open { display: grid; }
-  .field-grid .field-full { grid-column: 1 / -1; }
-  .field-grid label {
-    font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.05em;
-    color: var(--slate); font-weight: 600; display: block; margin-bottom: 4px;
-  }
-  .field-grid input, .field-grid select {
-    width: 100%; padding: 8px 10px; border-radius: 8px;
-    border: 1px solid var(--line); background: var(--surface-sunken);
-    color: var(--ink); font-family: inherit; font-size: 13.5px;
-    font-variant-numeric: tabular-nums;
-  }
-  .field-grid input:focus-visible, .field-grid select:focus-visible {
-    outline: 2px solid var(--focus); outline-offset: 1px;
-  }
-
-  .primary-btn {
-    width: 100%;
-    background: var(--navy); color: var(--navy-ink);
-    border: none; border-radius: 12px; padding: 13px;
-    font-family: inherit; font-weight: 600; font-size: 15px;
-    cursor: pointer;
-  }
-  .primary-btn:disabled { opacity: 0.55; cursor: default; }
-  .primary-btn:not(:disabled):hover { opacity: 0.9; }
-
-  .error-banner {
-    background: var(--red-soft); border: 1px solid var(--red); color: var(--ink);
-    border-radius: 8px; padding: 9px 12px; font-size: 13px; margin-top: 10px;
-  }
-
-  /* ---------- Result card ---------- */
-  .score-hero { display: flex; align-items: baseline; gap: 8px; margin-bottom: 8px; }
-  .score-hero .value {
-    font-family: 'Source Serif 4', serif; font-size: 40px; font-weight: 600;
-    letter-spacing: -0.01em; font-variant-numeric: tabular-nums;
-  }
-  .score-hero .range { color: var(--slate); font-size: 13px; }
-  .score-bar-track { height: 8px; border-radius: 4px; background: var(--line); overflow: hidden; margin-bottom: 3px; }
-  .score-bar-fill { height: 100%; border-radius: 4px; background: var(--navy); }
-  .score-scale { display: flex; justify-content: space-between; color: var(--slate); font-size: 10.5px; margin-bottom: 12px; }
-
-  .status-chip {
-    display: inline-flex; align-items: center; gap: 6px;
-    padding: 4px 11px; border-radius: 999px; font-size: 13px; font-weight: 600;
-    margin-bottom: 12px; margin-right: 6px;
-  }
-  .status-chip.good { color: var(--green); background: var(--green-soft); border: 1px solid var(--green); }
-  .status-chip.bad { color: var(--red); background: var(--red-soft); border: 1px solid var(--red); }
-  .status-chip.warn { color: var(--amber); background: var(--amber-soft); border: 1px solid var(--amber); }
-
-  .repay-line { font-size: 13px; color: var(--ink-soft); margin: 0 0 4px; }
-  .repay-line b { font-variant-numeric: tabular-nums; }
-
-  .factors-heading {
-    font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em;
-    color: var(--slate); font-weight: 600; margin: 16px 0 4px;
-  }
-  .factor-row { display: flex; gap: 10px; padding: 10px 0; border-top: 1px solid var(--surface-sunken); }
-  .factor-row:first-of-type { border-top: none; }
-  .factor-row .sign {
-    font-weight: 700; width: 18px; flex-shrink: 0; text-align: center;
-    font-variant-numeric: tabular-nums; font-size: 15px; padding-top: 1px;
-  }
-  .factor-row .sign.pos { color: var(--green); }
-  .factor-row .sign.neg { color: var(--red); }
-  .factor-row .f-body p { margin: 0 0 3px; font-size: 13.5px; }
-  .factor-row .f-body .f-action { color: var(--slate); font-size: 12px; }
-
-  .result-meta {
-    display: flex; gap: 14px; flex-wrap: wrap;
-    color: var(--slate); font-size: 11px; margin-top: 14px;
-    padding-top: 10px; border-top: 1px dashed var(--line);
-  }
-  .brand { display: flex; align-items: center; gap: 8px; min-width: 0; }
-  .brand .badge {
-    width: 34px; height: 34px; border-radius: 9px;
-    background: var(--navy); color: var(--navy-ink);
-    display: flex; align-items: center; justify-content: center;
-    font-family: 'Source Serif 4', serif; font-weight: 600; font-size: 16px;
-    flex-shrink: 0;
-  }
-  .brand .names { min-width: 0; }
-  .brand .mark {
-    font-family: 'Source Serif 4', Georgia, serif;
-    font-weight: 600;
-    font-size: 18px;
-    letter-spacing: -0.01em;
-    display: block;
-  }
-  .brand .status-line {
-    display: flex; align-items: center; gap: 6px;
-    font-size: 11.5px; color: var(--slate);
-  }
-  .dot {
-    width: 7px; height: 7px; border-radius: 50%;
-    background: var(--slate); flex-shrink: 0;
-    transition: background 0.3s;
-  }
-  .dot.ok { background: var(--green); }
-  .dot.bad { background: var(--red); }
-  .dot.pending { background: var(--amber); animation: pulse 1.4s ease-in-out infinite; }
-  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
-  @media (prefers-reduced-motion: reduce) { .dot.pending { animation: none; } }
-
-  /* ---------- Language switcher ---------- */
-  .lang-switch {
-    display: flex;
-    background: var(--surface-sunken);
-    border: 1px solid var(--line);
-    border-radius: 999px;
-    padding: 3px;
-    flex-shrink: 0;
-  }
-  .lang-btn {
-    border: none;
-    background: transparent;
-    color: var(--slate);
-    font-family: inherit;
-    font-size: 12.5px;
-    font-weight: 500;
-    padding: 6px 11px;
-    border-radius: 999px;
-    cursor: pointer;
-    white-space: nowrap;
-  }
-  .lang-btn.active { background: var(--navy); color: var(--navy-ink); }
-  .lang-btn:disabled { color: var(--line); cursor: not-allowed; position: relative; }
-  .lang-btn:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
-  .soon-badge {
-    font-size: 8.5px;
-    vertical-align: super;
-    margin-left: 1px;
-  }
-
-  /* ---------- Thread ---------- */
-  .chat-section { display: flex; flex-direction: column; }
-  .thread {
-    max-height: 46vh;
-    min-height: 90px;
-    overflow-y: auto;
-    padding: 4px 2px 8px;
-    display: flex;
-    flex-direction: column;
-    gap: 14px;
-  }
-
-  .turn { display: flex; flex-direction: column; gap: 5px; max-width: 88%; }
-  .turn.user { align-self: flex-end; align-items: flex-end; }
-  .turn.assistant { align-self: flex-start; }
-
-  .bubble {
-    padding: 12px 15px;
-    border-radius: 4px;
-    font-size: 15.5px;
-    line-height: 1.55;
-  }
-  .turn.user .bubble {
-    background: var(--navy);
-    color: var(--navy-ink);
-    border-radius: 14px 14px 3px 14px;
-  }
-  .turn.assistant .bubble {
-    background: var(--surface);
-    border: 1px solid var(--line);
-    border-radius: 3px 14px 14px 14px;
-    box-shadow: var(--shadow);
-  }
-  .turn.assistant .bubble.escalated {
-    border-color: var(--amber);
-    background: var(--amber-soft);
-  }
-
-  .cite-row {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-    margin-top: 10px;
-    padding-top: 10px;
-    border-top: 1px dashed var(--line);
-  }
-  .cite {
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 10.5px;
-    color: var(--ink-soft);
-    background: var(--surface-sunken);
-    border: 1px solid var(--line);
-    padding: 3px 8px;
-    border-radius: 4px;
-  }
-  .disclaimer {
-    margin-top: 8px;
-    font-size: 12.5px;
-    color: var(--slate);
-    font-style: italic;
-  }
-
-  /* ---------- Inline "how I answered" toggle ---------- */
-  .trace-toggle {
-    align-self: flex-start;
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    background: none;
-    border: none;
-    color: var(--slate);
-    font-family: inherit;
-    font-size: 12px;
-    padding: 2px 2px;
-    margin-top: 2px;
-    cursor: pointer;
-    text-decoration: underline;
-    text-decoration-style: dotted;
-    text-underline-offset: 3px;
-  }
-  .trace-toggle:hover { color: var(--ink); }
-  .trace-toggle:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
-  .trace-toggle .chev { transition: transform 0.15s; display: inline-block; }
-  .trace-toggle.open .chev { transform: rotate(90deg); }
-
-  .trace-card {
-    display: none;
-    background: var(--surface-sunken);
-    border: 1px solid var(--line);
-    border-radius: 10px;
-    padding: 12px 14px;
-    font-size: 12.5px;
-    width: 100%;
-  }
-  .trace-card.open { display: block; }
-  .trace-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
-  .trace-row:last-child { margin-bottom: 0; }
-  .trace-label {
-    font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em;
-    color: var(--slate); font-weight: 600; width: 92px; flex-shrink: 0;
-  }
-  .pill {
-    display: inline-flex; align-items: center; gap: 5px;
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 11.5px; font-weight: 500;
-    padding: 3px 9px; border-radius: 6px;
-  }
-  .pill.route-policy { background: var(--gold-soft); color: var(--gold); }
-  .pill.route-credit_assessment { background: var(--green-soft); color: var(--green); }
-  .pill.route-off_topic { background: var(--red-soft); color: var(--red); }
-  .pill.status-yes { background: var(--green-soft); color: var(--green); }
-  .pill.status-no { background: var(--amber-soft); color: var(--amber); }
-  .mini-meter {
-    flex: 1; height: 6px; background: var(--line); border-radius: 999px; overflow: hidden;
-  }
-  .mini-meter-fill { height: 100%; background: var(--green); border-radius: 999px; }
-  .mini-meter-fill.low { background: var(--amber); }
-  .num { font-variant-numeric: tabular-nums; }
-
-  .thinking { display: flex; gap: 5px; padding: 6px 2px; }
-  .thinking span {
-    width: 6px; height: 6px; border-radius: 50%;
-    background: var(--slate);
-    animation: bounce 1.1s infinite ease-in-out;
-  }
-  .thinking span:nth-child(2) { animation-delay: 0.15s; }
-  .thinking span:nth-child(3) { animation-delay: 0.3s; }
-  @keyframes bounce { 0%,80%,100% { transform: translateY(0); opacity: 0.5; } 40% { transform: translateY(-4px); opacity: 1; } }
-  @media (prefers-reduced-motion: reduce) { .thinking span { animation: none; } }
-
-  /* ---------- Composer ---------- */
-  .composer-area {
-    border-top: 1px solid var(--line);
-    padding-top: 12px;
-    margin-top: 4px;
-  }
-  .hint {
-    font-size: 12px;
-    color: var(--slate);
-    margin: 0 0 8px;
-  }
-  .chips {
-    display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
-    margin-bottom: 10px;
-  }
-  .chip {
-    font-size: 13px;
-    font-family: inherit;
-    color: var(--ink-soft);
-    background: var(--surface);
-    border: 1px solid var(--line);
-    padding: 8px 13px;
-    border-radius: 999px;
-    cursor: pointer;
-    transition: border-color 0.15s, color 0.15s;
-  }
-  .chip:hover { border-color: var(--gold); color: var(--ink); }
-  .chip:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
-
-  .composer { display: flex; gap: 8px; align-items: flex-end; }
-  .composer textarea {
-    flex: 1;
-    resize: none;
-    border: 1px solid var(--line);
-    background: var(--surface);
-    color: var(--ink);
-    border-radius: 14px;
-    padding: 12px 15px;
-    font-family: inherit;
-    font-size: 15.5px;
-    line-height: 1.4;
-    max-height: 120px;
-  }
-  .composer textarea:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
-  .send-btn {
-    background: var(--navy);
-    color: var(--navy-ink);
-    border: none;
-    border-radius: 14px;
-    padding: 12px 20px;
-    font-family: inherit;
-    font-weight: 500;
-    font-size: 14.5px;
-    cursor: pointer;
-    transition: opacity 0.15s;
-    flex-shrink: 0;
-  }
-  .send-btn:disabled { opacity: 0.5; cursor: default; }
-  .send-btn:not(:disabled):hover { opacity: 0.88; }
-  .send-btn:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
-
-  ::-webkit-scrollbar { width: 8px; height: 8px; }
-  ::-webkit-scrollbar-thumb { background: var(--line); border-radius: 6px; }
-  ::-webkit-scrollbar-track { background: transparent; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+  .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+  .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+  [hidden] { display: none !important; }
 </style>
 
-<div class="app">
-  <header>
-    <div class="brand">
-      <span class="badge">F</span>
-      <div class="names">
-        <span class="mark" id="brandName">FinBuddy</span>
-        <span class="status-line">
-          <span class="dot pending" id="statusDot"></span>
-          <span id="statusText">&hellip;</span>
-        </span>
+<div class="bg-slate-100 dark:bg-slate-950 min-h-screen flex items-start sm:items-center justify-center p-2 sm:p-4">
+<div class="w-full max-w-md bg-white dark:bg-slate-900 rounded-3xl shadow-xl overflow-hidden border border-slate-200 dark:border-slate-800 flex flex-col">
+
+  <!-- Header (always visible) -->
+  <div class="p-5 pb-0">
+    <div class="flex justify-between items-start mb-4">
+      <div>
+        <h1 class="text-2xl font-extrabold text-blue-600 dark:text-blue-400" id="brandName">FinBuddy</h1>
+        <p class="text-xs text-slate-500 dark:text-slate-400 font-medium" id="brandTagline"></p>
+      </div>
+      <div class="flex items-center gap-1.5 bg-slate-50 dark:bg-slate-800 rounded-full px-2.5 py-1">
+        <span id="statusDot" class="w-1.5 h-1.5 rounded-full bg-slate-300"></span>
+        <span id="statusText" class="text-[10px] font-semibold text-slate-500 dark:text-slate-400"></span>
       </div>
     </div>
-    <div class="lang-switch" id="langSwitch" role="group" aria-label="Language">
-      <button class="lang-btn active" data-lang="en">English</button>
-      <button class="lang-btn" data-lang="hi">हिन्दी</button>
-      <button class="lang-btn" data-lang="kn" disabled title="Coming soon">ಕನ್ನಡ<span class="soon-badge">SOON</span></button>
+    <div class="grid grid-cols-3 gap-2 mb-4 text-xs font-bold" id="langSwitch" role="group" aria-label="Language">
+      <button data-lang="en" class="lang-btn py-2 rounded-xl border transition-all">English</button>
+      <button data-lang="hi" class="lang-btn py-2 rounded-xl border transition-all">हिन्दी</button>
+      <button data-lang="kn" disabled title="Coming soon" class="py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-300 dark:text-slate-600 cursor-not-allowed">ಕನ್ನಡ<span class="text-[8px] align-super">SOON</span></button>
     </div>
-  </header>
+  </div>
 
-  <main>
-    <section class="section-card" id="creditCard">
-      <h2 id="creditHeading"></h2>
-      <p class="section-hint" id="creditHint"></p>
+  <!-- VIEW: credit-assessment input -->
+  <div id="view-input" class="px-5 pb-5">
+    <h2 class="text-[11px] font-bold text-slate-400 dark:text-slate-500 tracking-wider uppercase mb-3" id="creditHeading"></h2>
+    <p class="text-xs text-slate-500 dark:text-slate-400 mb-4" id="creditHint"></p>
 
-      <div class="persona-row" id="personaRow"></div>
+    <div class="grid grid-cols-3 gap-2.5 mb-4" id="personaRow"></div>
 
-      <button class="fields-toggle" id="fieldsToggle" type="button"></button>
-      <div class="field-grid" id="fieldGrid"></div>
+    <div class="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl mb-4 text-xs font-semibold">
+      <button id="tabSimple" class="mode-tab flex-1 py-1.5 rounded-lg transition-all"></button>
+      <button id="tabAdvanced" class="mode-tab flex-1 py-1.5 rounded-lg transition-all"></button>
+    </div>
 
-      <button class="primary-btn" id="scoreBtn"></button>
-      <div class="error-banner" id="creditError" style="display:none;"></div>
-    </section>
+    <div id="simpleCard" class="bg-slate-50 dark:bg-slate-800/60 rounded-2xl p-4 border border-slate-200/80 dark:border-slate-700 mb-4"></div>
+    <div id="fieldGrid" class="hidden bg-slate-900 dark:bg-black text-white rounded-2xl p-4 border border-slate-800 mb-4 text-xs space-y-3"></div>
 
-    <section class="section-card" id="resultCard" style="display:none;"></section>
+    <button id="scoreBtn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3.5 rounded-2xl shadow-lg shadow-blue-500/25 transition-all text-sm"></button>
+    <div id="creditError" hidden class="mt-2 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 text-rose-700 dark:text-rose-300 rounded-xl p-3 text-xs"></div>
+    <p class="text-center text-[10px] text-slate-400 dark:text-slate-500 mt-3" id="creditFooter"></p>
+  </div>
 
-    <section class="section-card chat-section">
-      <h2 id="chatHeading"></h2>
-      <p class="section-hint" id="chatHint"></p>
-      <div class="thread" id="thread"></div>
+  <!-- VIEW: credit-assessment result -->
+  <div id="view-result" hidden class="px-5 pb-5 custom-scrollbar overflow-y-auto max-h-[70vh]">
+    <div class="flex justify-between items-center mb-3 pt-1">
+      <button id="backBtn" class="text-blue-600 dark:text-blue-400 text-xs font-bold flex items-center gap-1">
+        <i class="fa-solid fa-arrow-left"></i> <span id="backLabel"></span>
+      </button>
+      <h2 class="text-sm font-bold text-slate-800 dark:text-slate-100" id="resultTitle"></h2>
+      <span class="bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 text-[9px] font-bold px-2 py-0.5 rounded border border-emerald-200 dark:border-emerald-900" id="liveBadge"></span>
+    </div>
 
-      <div class="composer-area">
-        <p class="hint" id="hintText" style="display:none;"></p>
-        <div class="chips" id="chips"></div>
-        <div class="composer">
-          <textarea id="input" rows="1" aria-label="Message"></textarea>
-          <button class="send-btn" id="sendBtn"></button>
+    <div class="flex justify-center mb-4">
+      <span id="verdictBadge" class="text-xs font-black tracking-widest px-4 py-1.5 rounded-full uppercase shadow-sm flex items-center gap-1.5 border"></span>
+    </div>
+
+    <div class="bg-white dark:bg-slate-800 rounded-2xl p-4 border border-slate-100 dark:border-slate-700 shadow-sm mb-4">
+      <div class="flex justify-between items-start">
+        <div>
+          <span class="text-[11px] text-slate-400 dark:text-slate-500 font-medium block" id="primarySignalLabel"></span>
+          <span id="primarySignalValue" class="text-xs font-bold text-slate-800 dark:text-slate-100"></span>
+        </div>
+        <div class="text-right">
+          <span class="text-[11px] text-slate-400 dark:text-slate-500 font-medium block" id="scoreLabel"></span>
+          <span id="scoreValue" class="text-xl font-extrabold text-blue-600 dark:text-blue-400"></span>
+          <span class="block text-[10px] text-slate-400 dark:text-slate-500" id="repayLine"></span>
         </div>
       </div>
-    </section>
-  </main>
+      <div id="anomalyRow" hidden class="mt-3 bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-400 text-[11px] font-semibold px-2.5 py-1.5 rounded-lg border border-amber-200 dark:border-amber-900"></div>
+    </div>
+
+    <div class="bg-blue-50/70 dark:bg-blue-950/30 border-l-4 border-blue-600 p-3 rounded-r-xl mb-5">
+      <div class="text-blue-600 dark:text-blue-400 font-extrabold text-lg leading-none mb-1">&ldquo;</div>
+      <p id="quoteText" class="text-xs font-bold text-slate-800 dark:text-slate-100 italic leading-relaxed"></p>
+    </div>
+
+    <h3 class="text-[11px] font-bold text-slate-400 dark:text-slate-500 tracking-wider uppercase mb-2" id="factorsHeading"></h3>
+    <div class="space-y-3 mb-4" id="factorsList"></div>
+
+    <p class="text-[11px] text-slate-400 dark:text-slate-500 italic mb-4" id="disclaimerText"></p>
+
+    <div class="flex gap-3 text-[10px] text-slate-400 dark:text-slate-500 mb-4" id="metaRow"></div>
+  </div>
+
+  <!-- Chat section (always visible, below the credit flow) -->
+  <div class="px-5 pb-5 pt-1 border-t border-slate-100 dark:border-slate-800">
+    <h2 class="text-[11px] font-bold text-slate-400 dark:text-slate-500 tracking-wider uppercase mb-2 mt-4" id="chatHeading"></h2>
+    <p class="text-xs text-slate-500 dark:text-slate-400 mb-3" id="chatHint"></p>
+    <div class="flex flex-col gap-3 mb-3 max-h-72 overflow-y-auto custom-scrollbar" id="thread"></div>
+    <p id="hintText" hidden class="text-[11px] text-slate-400 dark:text-slate-500 mb-2"></p>
+    <div class="flex flex-wrap gap-2 mb-3" id="chips"></div>
+    <div class="flex gap-2 items-end">
+      <textarea id="input" rows="1" class="flex-1 resize-none border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 rounded-2xl px-3.5 py-2.5 text-sm max-h-28"></textarea>
+      <button id="sendBtn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-2xl px-4 py-2.5 text-xs flex-shrink-0"></button>
+    </div>
+  </div>
+
+</div>
 </div>
 
 <script>
@@ -520,332 +115,302 @@
 
   const STRINGS = {
     en: {
-      brand: 'FinBuddy',
-      statusChecking: 'checking…',
-      statusLive: 'here to help',
-      statusDown: "can't connect",
-      greeting: "Hi, I'm FinBuddy. Ask me anything about your data, your loan, or how FinBuddy works. I only answer using real RBI and government rules — if I'm not sure, I'll say so instead of guessing.",
-      placeholder: 'Type your question…',
-      send: 'Send',
+      tagline: 'Explainable credit & policy answers for India',
+      statusChecking: 'checking…', statusLive: 'live', statusDown: "offline",
+      creditHeading: 'Get a credit assessment',
+      creditHint: "Pick someone like you, or enter your own numbers. This calls FinBuddy's real, already-approved scoring system.",
+      tabSimple: 'Simple View', tabAdvanced: 'Advanced Mode',
+      fields: {
+        avg_monthly_income: 'Avg monthly income (₹)', income_regularity_score: 'Income regularity (0–1)',
+        tx_count_30d: 'UPI transactions / 30d', merchant_diversity: 'Merchant diversity',
+        balance_dip_frequency: 'Balance dip frequency', b2b_ratio: 'B2B ratio (0–1)',
+        avg_transaction_size: 'Avg transaction size (₹)', tenure_months: 'Tenure (months)', geography: 'Geography',
+      },
+      geographyOptions: { urban: 'Urban', semi_urban: 'Semi-urban', rural: 'Rural' },
+      simpleLabels: { income: 'Monthly income', upi: 'UPI/month', tenure: 'Data months', geo: 'Area' },
+      scoreBtn: 'Run AI credit assessment', scoreBtnLoading: 'Checking…',
+      creditFooter: 'Powered by FinBuddy AI · real UPI data signals',
+      creditErr: (msg) => `Couldn't get a score: ${msg}`,
+      backLabel: 'Back', resultTitle: 'Credit Assessment', liveBadge: '● Live, not a demo',
+      approved: 'APPROVED', notApproved: 'NOT APPROVED YET',
+      primarySignalLabel: 'Primary signal', scoreLabel: 'Credit score',
+      repayLine: (pct) => `${pct}% repayment confidence`,
+      anomalyLine: (note) => `⚠ Unusual UPI pattern flagged${note ? ': ' + note : ''}`,
+      factorsHeading: 'Why this decision',
+      metaLatency: (ms) => `Scored in ${ms}ms`, metaFair: 'Fairness-checked (F-012)', metaPlain: 'Plain threshold',
+      metaBand: (band) => `Income band: ${band}`,
+      personas: {
+        rajesh: { name: 'Rajesh', sub: 'Swiggy delivery · Bengaluru', addressName: 'Rajesh bhai' },
+        meena: { name: 'Meena', sub: 'Kirana owner · Chennai', addressName: 'Meena ji' },
+        custom: { name: 'Custom', sub: 'Your role · Your city', addressName: null },
+      },
+      chatHeading: 'Ask FinBuddy a question',
+      chatHint: "Grounded in FinBuddy's real RBI/DPDP policy corpus — if it doesn't know, it says so instead of guessing.",
+      placeholder: 'Type your question…', send: 'Send',
       hintOtherLang: "For the most accurate answer, questions work best in English — I'll still reply in the language you've chosen.",
-      traceShow: 'How did I answer this?',
-      traceHide: 'Hide details',
-      traceRoute: 'Type',
-      traceGrounding: 'Grounding',
-      traceSources: 'Source',
-      traceStatus: 'Result',
-      traceConfidence: 'Sureness',
+      traceShow: 'How did I answer this?', traceHide: 'Hide details',
+      traceRoute: 'Type', traceGrounding: 'Grounding', traceSources: 'Source', traceStatus: 'Result', traceConfidence: 'Sureness',
       routeLabels: { policy: 'Policy question', credit_assessment: 'Credit check', off_topic: "Couldn't help" },
-      groundedYes: 'Found matching rules',
-      groundedNo: "Couldn't find a good match",
-      resultAnswered: 'Answered directly',
-      resultEscalated: 'Sent to a human coach',
+      groundedYes: 'Found matching rules', groundedNo: "Couldn't find a good match",
+      resultAnswered: 'Answered directly', resultEscalated: 'Sent to a human coach',
       chips: [
         { label: 'Why do you need my data?', query: 'What counts as valid consent for using my personal data?' },
         { label: 'How much can a guarantor cover?', query: 'What is the cap on Default Loss Guarantee cover for a loan?' },
         { label: 'Ask something random', query: "What's a good recipe for butter chicken?" },
       ],
+      greeting: "Hi, I'm FinBuddy. Ask me anything about your data, your loan, or how FinBuddy works. I only answer using real RBI and government rules — if I'm not sure, I'll say so instead of guessing.",
       errHttp: (code) => `Something went wrong on my end (error ${code}). If the app just woke up, please try again in a few seconds.`,
       errNetwork: "I couldn't connect. The app may be waking up after resting — this can take about a minute the first time. Please try again.",
-      creditHeading: 'Get a credit assessment',
-      creditHint: "Pick someone like you, or enter your own numbers. This calls FinBuddy's real, already-approved scoring system — not a demo mock.",
-      chatHeading: 'Ask FinBuddy a question',
-      chatHint: "Grounded in FinBuddy's real RBI/DPDP policy corpus — if it doesn't know, it says so instead of guessing.",
-      fieldsShow: 'Edit the numbers yourself',
-      fieldsHide: 'Hide the numbers',
-      scoreBtn: 'Get my score',
-      scoreBtnLoading: 'Checking…',
-      fields: {
-        avg_monthly_income: 'Avg monthly income (₹)',
-        income_regularity_score: 'Income regularity (0–1)',
-        tx_count_30d: 'UPI transactions / 30 days',
-        merchant_diversity: 'Different shops paid',
-        balance_dip_frequency: 'Times balance ran low',
-        b2b_ratio: 'Share paid to businesses (0–1)',
-        avg_transaction_size: 'Avg. payment size (₹)',
-        tenure_months: 'Months of UPI history',
-        geography: 'Area type',
-      },
-      geographyOptions: { urban: 'Urban', semi_urban: 'Semi-urban', rural: 'Rural' },
-      creditErr: (msg) => `Couldn't get a score: ${msg}`,
-      resultHeading: 'Your assessment',
-      approved: 'Approved',
-      notApproved: 'Not approved yet',
-      anomalyWarn: 'Unusual UPI pattern flagged',
-      repayLine: (pct) => `Chance of repaying on time: ${pct}%`,
-      factorsHeading: 'Why this result',
-      metaLatency: (ms) => `Scored in ${ms}ms`,
-      metaFair: 'Fairness-checked decision',
-      metaPlain: 'Plain threshold (no area given)',
-      metaBand: (band) => `Income band: ${band}`,
-      personas: {
-        rajesh: { name: 'Rajesh', sub: 'Delivery rider · Bengaluru' },
-        meena: { name: 'Meena', sub: 'Kirana shop owner · Chennai' },
-        custom: { name: 'Custom', sub: 'Your own numbers' },
-      },
     },
     hi: {
-      brand: 'फिनबडी',
-      statusChecking: 'देख रही हूं…',
-      statusLive: 'मदद के लिए तैयार',
-      statusDown: 'कनेक्ट नहीं हो पा रहा',
-      greeting: 'नमस्ते, मैं FinBuddy हूं। अपने डेटा, लोन या FinBuddy के काम करने के तरीके के बारे में मुझसे कुछ भी पूछें। मैं सिर्फ असली RBI और सरकारी नियमों के आधार पर जवाब देती हूं — अगर मुझे पक्का पता नहीं है, तो मैं अंदाज़ा नहीं लगाऊंगी, साफ़ बता दूंगी।',
-      placeholder: 'अपना सवाल लिखें…',
-      send: 'भेजें',
+      tagline: 'भारत के लिए समझने-योग्य क्रेडिट और नीति जवाब',
+      statusChecking: 'देख रही हूं…', statusLive: 'लाइव', statusDown: 'ऑफ़लाइन',
+      creditHeading: 'क्रेडिट आकलन करवाएं',
+      creditHint: 'अपने जैसा कोई चुनें, या अपने नंबर डालें। यह FinBuddy के असली, पहले से स्वीकृत स्कोरिंग सिस्टम को कॉल करता है।',
+      tabSimple: 'सरल दृश्य', tabAdvanced: 'विस्तृत मोड',
+      fields: {
+        avg_monthly_income: 'औसत मासिक आय (₹)', income_regularity_score: 'आय नियमितता (0–1)',
+        tx_count_30d: 'UPI लेनदेन / 30 दिन', merchant_diversity: 'दुकानों की विविधता',
+        balance_dip_frequency: 'बैलेंस कम होने की बार', b2b_ratio: 'B2B अनुपात (0–1)',
+        avg_transaction_size: 'औसत लेनदेन राशि (₹)', tenure_months: 'अवधि (महीने)', geography: 'इलाका',
+      },
+      geographyOptions: { urban: 'शहरी', semi_urban: 'अर्ध-शहरी', rural: 'ग्रामीण' },
+      simpleLabels: { income: 'मासिक आय', upi: 'UPI/महीना', tenure: 'डेटा महीने', geo: 'इलाका' },
+      scoreBtn: 'AI क्रेडिट आकलन चलाएं', scoreBtnLoading: 'देख रही हूं…',
+      creditFooter: 'FinBuddy AI द्वारा संचालित · असली UPI डेटा',
+      creditErr: (msg) => `स्कोर नहीं मिल पाया: ${msg}`,
+      backLabel: 'वापस', resultTitle: 'क्रेडिट आकलन', liveBadge: '● लाइव, डेमो नहीं',
+      approved: 'स्वीकृत', notApproved: 'अभी स्वीकृत नहीं',
+      primarySignalLabel: 'मुख्य संकेत', scoreLabel: 'क्रेडिट स्कोर',
+      repayLine: (pct) => `${pct}% चुकाने का भरोसा`,
+      anomalyLine: (note) => `⚠ असामान्य UPI पैटर्न मिला${note ? ': ' + note : ''}`,
+      factorsHeading: 'यह निर्णय क्यों',
+      metaLatency: (ms) => `${ms}ms में स्कोर मिला`, metaFair: 'निष्पक्षता-जांचा गया (F-012)', metaPlain: 'सामान्य सीमा',
+      metaBand: (band) => `आय श्रेणी: ${band}`,
+      personas: {
+        rajesh: { name: 'राजेश', sub: 'Swiggy डिलीवरी · बेंगलुरु', addressName: 'राजेश भाई' },
+        meena: { name: 'मीना', sub: 'किराना दुकान · चेन्नई', addressName: 'मीना जी' },
+        custom: { name: 'कस्टम', sub: 'अपनी भूमिका · अपना शहर', addressName: null },
+      },
+      chatHeading: 'FinBuddy से सवाल पूछें',
+      chatHint: 'FinBuddy के असली RBI/DPDP नीति दस्तावेज़ों पर आधारित — अगर पता नहीं है, तो अंदाज़ा लगाने के बजाय साफ़ बता देती है।',
+      placeholder: 'अपना सवाल लिखें…', send: 'भेजें',
       hintOtherLang: 'सबसे सही जवाब के लिए सवाल अंग्रेज़ी में बेहतर काम करता है — मैं फिर भी आपकी चुनी हुई भाषा में जवाब दूंगी।',
-      traceShow: 'यह जवाब कैसे मिला?',
-      traceHide: 'बंद करें',
-      traceRoute: 'तरह',
-      traceGrounding: 'आधार',
-      traceSources: 'स्रोत',
-      traceStatus: 'नतीजा',
-      traceConfidence: 'भरोसा',
+      traceShow: 'यह जवाब कैसे मिला?', traceHide: 'बंद करें',
+      traceRoute: 'तरह', traceGrounding: 'आधार', traceSources: 'स्रोत', traceStatus: 'नतीजा', traceConfidence: 'भरोसा',
       routeLabels: { policy: 'नियम संबंधी सवाल', credit_assessment: 'क्रेडिट जांच', off_topic: 'मदद नहीं कर पाई' },
-      groundedYes: 'सही नियम मिले',
-      groundedNo: 'सही जानकारी नहीं मिली',
-      resultAnswered: 'सीधे जवाब दिया',
-      resultEscalated: 'इंसान कोच के पास भेजा',
+      groundedYes: 'सही नियम मिले', groundedNo: 'सही जानकारी नहीं मिली',
+      resultAnswered: 'सीधे जवाब दिया', resultEscalated: 'इंसान कोच के पास भेजा',
       chips: [
         { label: 'आपको मेरा डेटा क्यों चाहिए?', query: 'What counts as valid consent for using my personal data?' },
         { label: 'गारंटर कितना कवर कर सकता है?', query: 'What is the cap on Default Loss Guarantee cover for a loan?' },
         { label: 'कुछ भी पूछें', query: "What's a good recipe for butter chicken?" },
       ],
+      greeting: 'नमस्ते, मैं FinBuddy हूं। अपने डेटा, लोन या FinBuddy के काम करने के तरीके के बारे में मुझसे कुछ भी पूछें। मैं सिर्फ असली RBI और सरकारी नियमों के आधार पर जवाब देती हूं — अगर मुझे पक्का पता नहीं है, तो मैं अंदाज़ा नहीं लगाऊंगी, साफ़ बता दूंगी।',
       errHttp: (code) => `मेरी तरफ़ से कुछ गड़बड़ हो गई (एरर ${code})। अगर ऐप अभी जगी है, तो कुछ सेकंड में फिर कोशिश करें।`,
       errNetwork: 'मैं कनेक्ट नहीं हो पाई। ऐप सो कर उठ रही हो सकती है — पहली बार में करीब एक मिनट लग सकता है। कृपया फिर कोशिश करें।',
-      creditHeading: 'क्रेडिट आकलन करवाएं',
-      creditHint: 'अपने जैसा कोई चुनें, या अपने नंबर डालें। यह FinBuddy के असली, पहले से स्वीकृत स्कोरिंग सिस्टम को कॉल करता है — डेमो नकली नहीं।',
-      chatHeading: 'FinBuddy से सवाल पूछें',
-      chatHint: 'FinBuddy के असली RBI/DPDP नीति दस्तावेज़ों पर आधारित — अगर पता नहीं है, तो अंदाज़ा लगाने के बजाय साफ़ बता देती है।',
-      fieldsShow: 'नंबर खुद बदलें',
-      fieldsHide: 'नंबर छुपाएं',
-      scoreBtn: 'मेरा स्कोर देखें',
-      scoreBtnLoading: 'देख रही हूं…',
-      fields: {
-        avg_monthly_income: 'औसत मासिक आय (₹)',
-        income_regularity_score: 'आय की नियमितता (0–1)',
-        tx_count_30d: 'UPI लेनदेन / 30 दिन',
-        merchant_diversity: 'अलग-अलग दुकानों को भुगतान',
-        balance_dip_frequency: 'बैलेंस कम होने की बार',
-        b2b_ratio: 'व्यवसायों को भुगतान का हिस्सा (0–1)',
-        avg_transaction_size: 'औसत भुगतान राशि (₹)',
-        tenure_months: 'UPI इतिहास (महीने)',
-        geography: 'इलाके का प्रकार',
-      },
-      geographyOptions: { urban: 'शहरी', semi_urban: 'अर्ध-शहरी', rural: 'ग्रामीण' },
-      creditErr: (msg) => `स्कोर नहीं मिल पाया: ${msg}`,
-      resultHeading: 'आपका आकलन',
-      approved: 'स्वीकृत',
-      notApproved: 'अभी स्वीकृत नहीं',
-      anomalyWarn: 'असामान्य UPI पैटर्न मिला',
-      repayLine: (pct) => `समय पर चुकाने की संभावना: ${pct}%`,
-      factorsHeading: 'यह नतीजा क्यों',
-      metaLatency: (ms) => `${ms}ms में स्कोर मिला`,
-      metaFair: 'निष्पक्षता-जांचा गया निर्णय',
-      metaPlain: 'सामान्य सीमा (इलाका नहीं दिया गया)',
-      metaBand: (band) => `आय श्रेणी: ${band}`,
-      personas: {
-        rajesh: { name: 'राजेश', sub: 'डिलीवरी राइडर · बेंगलुरु' },
-        meena: { name: 'मीना', sub: 'किराना दुकान मालिक · चेन्नई' },
-        custom: { name: 'कस्टम', sub: 'अपने नंबर डालें' },
-      },
     },
   };
 
-  // Real UPI-signal presets matching production FinBuddy's own scoring API
-  // contract (avg_monthly_income..tenure_months + geography) -- same shape
-  // as customer_ui/PRESETS in the production repo, reused here read-only
-  // (values only, no code copied) since this project never modifies that
-  // repo. Sent through THIS project's own /agent/run (credit_signals), not
-  // the scoring API directly -- that's what actually demonstrates the
-  // agentic orchestration (Intent Router, guardrails, disclaimer) instead
-  // of just duplicating the production customer UI's direct-call pattern.
   const PERSONAS = {
-    rajesh: {
-      emoji: '🛺',
-      avg_monthly_income: 20000, income_regularity_score: 0.82, tx_count_30d: 400,
-      merchant_diversity: 12, balance_dip_frequency: 2, b2b_ratio: 0.15,
-      avg_transaction_size: 50, tenure_months: 6, geography: 'urban',
-    },
-    meena: {
-      emoji: '🛒',
-      avg_monthly_income: 37000, income_regularity_score: 0.91, tx_count_30d: 900,
-      merchant_diversity: 28, balance_dip_frequency: 0, b2b_ratio: 0.65,
-      avg_transaction_size: 210, tenure_months: 12, geography: 'urban',
-    },
-    custom: {
-      emoji: '✏️',
-      avg_monthly_income: 15000, income_regularity_score: 0.5, tx_count_30d: 100,
-      merchant_diversity: 8, balance_dip_frequency: 3, b2b_ratio: 0.1,
-      avg_transaction_size: 150, tenure_months: 3, geography: 'semi_urban',
-    },
+    rajesh: { emoji: '🛺', avg_monthly_income: 20000, income_regularity_score: 0.82, tx_count_30d: 400, merchant_diversity: 12, balance_dip_frequency: 2, b2b_ratio: 0.15, avg_transaction_size: 50, tenure_months: 6, geography: 'urban' },
+    meena: { emoji: '🛒', avg_monthly_income: 37000, income_regularity_score: 0.91, tx_count_30d: 900, merchant_diversity: 28, balance_dip_frequency: 0, b2b_ratio: 0.65, avg_transaction_size: 210, tenure_months: 12, geography: 'urban' },
+    custom: { emoji: '✏️', avg_monthly_income: 15000, income_regularity_score: 0.5, tx_count_30d: 100, merchant_diversity: 8, balance_dip_frequency: 3, b2b_ratio: 0.1, avg_transaction_size: 150, tenure_months: 3, geography: 'semi_urban' },
   };
-  const FIELD_ORDER = [
-    'avg_monthly_income', 'income_regularity_score', 'tx_count_30d', 'merchant_diversity',
-    'balance_dip_frequency', 'b2b_ratio', 'avg_transaction_size', 'tenure_months',
-  ];
-  const NUM_STEP = {
-    income_regularity_score: '0.01', b2b_ratio: '0.01',
-  };
+  const FIELD_ORDER = ['avg_monthly_income', 'income_regularity_score', 'tx_count_30d', 'merchant_diversity', 'balance_dip_frequency', 'b2b_ratio', 'avg_transaction_size', 'tenure_months'];
+  const NUM_STEP = { income_regularity_score: '0.01', b2b_ratio: '0.01' };
 
   let currentLang = 'en';
   const S = () => STRINGS[currentLang];
   let selectedPersona = 'rajesh';
   let formValues = { ...PERSONAS.rajesh };
-
-  const thread = document.getElementById('thread');
-  const input = document.getElementById('input');
-  const sendBtn = document.getElementById('sendBtn');
-  const statusDot = document.getElementById('statusDot');
-  const statusText = document.getElementById('statusText');
-  const brandName = document.getElementById('brandName');
-  const hintText = document.getElementById('hintText');
-  const chipsEl = document.getElementById('chips');
-  const langSwitch = document.getElementById('langSwitch');
-  const creditHeading = document.getElementById('creditHeading');
-  const creditHint = document.getElementById('creditHint');
-  const chatHeading = document.getElementById('chatHeading');
-  const chatHint = document.getElementById('chatHint');
-  const personaRow = document.getElementById('personaRow');
-  const fieldsToggle = document.getElementById('fieldsToggle');
-  const fieldGrid = document.getElementById('fieldGrid');
-  const scoreBtn = document.getElementById('scoreBtn');
-  const creditError = document.getElementById('creditError');
-  const resultCard = document.getElementById('resultCard');
-
+  let mode = 'simple';
   let sessionId = null;
   try { sessionId = crypto.randomUUID(); } catch (e) { sessionId = 'sess-' + Math.random().toString(36).slice(2); }
   let isLive = false;
 
-  function escapeHtml(s) {
-    const d = document.createElement('div');
-    d.textContent = s;
-    return d.innerHTML;
-  }
+  const el = (id) => document.getElementById(id);
+  const brandTagline = el('brandTagline'), statusDot = el('statusDot'), statusText = el('statusText'), langSwitch = el('langSwitch');
+  const creditHeading = el('creditHeading'), creditHint = el('creditHint'), personaRow = el('personaRow');
+  const tabSimple = el('tabSimple'), tabAdvanced = el('tabAdvanced'), simpleCard = el('simpleCard'), fieldGrid = el('fieldGrid');
+  const scoreBtn = el('scoreBtn'), creditError = el('creditError'), creditFooter = el('creditFooter');
+  const viewInput = el('view-input'), viewResult = el('view-result'), backBtn = el('backBtn'), backLabel = el('backLabel');
+  const resultTitle = el('resultTitle'), liveBadge = el('liveBadge'), verdictBadge = el('verdictBadge');
+  const primarySignalLabel = el('primarySignalLabel'), primarySignalValue = el('primarySignalValue');
+  const scoreLabel = el('scoreLabel'), scoreValue = el('scoreValue'), repayLine = el('repayLine'), anomalyRow = el('anomalyRow');
+  const quoteText = el('quoteText'), factorsHeading = el('factorsHeading'), factorsList = el('factorsList');
+  const disclaimerText = el('disclaimerText'), metaRow = el('metaRow');
+  const chatHeading = el('chatHeading'), chatHint = el('chatHint'), thread = el('thread'), hintText = el('hintText');
+  const chipsEl = el('chips'), input = el('input'), sendBtn = el('sendBtn');
+
+  function escapeHtml(s) { const d = document.createElement('div'); d.textContent = s ?? ''; return d.innerHTML; }
+
+  const ACTIVE_LANG = 'py-2 rounded-xl border transition-all border-blue-600 bg-blue-600 text-white';
+  const INACTIVE_LANG = 'py-2 rounded-xl border transition-all border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:border-slate-300';
+  const ACTIVE_TAB = 'mode-tab flex-1 py-1.5 rounded-lg transition-all bg-white dark:bg-slate-700 shadow-sm text-blue-600 dark:text-blue-400';
+  const INACTIVE_TAB = 'mode-tab flex-1 py-1.5 rounded-lg transition-all text-slate-600 dark:text-slate-400';
+  const ACTIVE_PERSONA = 'p-3 rounded-2xl border-2 border-blue-600 bg-blue-50/60 dark:bg-blue-950/30 flex flex-col items-center text-center transition-all';
+  const INACTIVE_PERSONA = 'p-3 rounded-2xl border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 flex flex-col items-center text-center transition-all hover:border-slate-300';
 
   function applyStrings() {
     const s = S();
-    brandName.textContent = s.brand;
-    statusText.textContent = isLive ? s.statusLive : (statusDot.classList.contains('bad') ? s.statusDown : s.statusChecking);
-    input.placeholder = s.placeholder;
-    sendBtn.textContent = s.send;
-    if (currentLang === 'en') {
-      hintText.style.display = 'none';
-    } else {
-      hintText.style.display = 'block';
-      hintText.textContent = s.hintOtherLang;
-    }
-    chipsEl.innerHTML = s.chips.map((c, i) =>
-      `<button class="chip" data-idx="${i}">${escapeHtml(c.label)}</button>`
-    ).join('');
-
+    brandTagline.textContent = s.tagline;
+    statusText.textContent = isLive ? s.statusLive : (statusDot.dataset.bad ? s.statusDown : s.statusChecking);
+    langSwitch.querySelectorAll('.lang-btn').forEach((b) => {
+      b.className = 'lang-btn ' + (b.dataset.lang === currentLang ? ACTIVE_LANG : INACTIVE_LANG);
+    });
     creditHeading.textContent = s.creditHeading;
     creditHint.textContent = s.creditHint;
+    tabSimple.textContent = s.tabSimple;
+    tabAdvanced.textContent = s.tabAdvanced;
+    tabSimple.className = mode === 'simple' ? ACTIVE_TAB : INACTIVE_TAB;
+    tabAdvanced.className = mode === 'advanced' ? ACTIVE_TAB : INACTIVE_TAB;
+    scoreBtn.textContent = scoreBtn.dataset.loading ? s.scoreBtnLoading : s.scoreBtn;
+    creditFooter.textContent = s.creditFooter;
+    backLabel.textContent = s.backLabel;
+    resultTitle.textContent = s.resultTitle;
+    liveBadge.textContent = s.liveBadge;
+    primarySignalLabel.textContent = s.primarySignalLabel;
+    scoreLabel.textContent = s.scoreLabel;
+    factorsHeading.textContent = s.factorsHeading;
     chatHeading.textContent = s.chatHeading;
     chatHint.textContent = s.chatHint;
-    scoreBtn.textContent = scoreBtn.disabled && scoreBtn.dataset.loading ? s.scoreBtnLoading : s.scoreBtn;
+    input.placeholder = s.placeholder;
+    sendBtn.textContent = s.send;
+    if (currentLang === 'en') { hintText.hidden = true; } else { hintText.hidden = false; hintText.textContent = s.hintOtherLang; }
+    chipsEl.innerHTML = s.chips.map((c, i) => `<button class="chip bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 text-xs px-3 py-2 rounded-full hover:border-blue-400" data-idx="${i}">${escapeHtml(c.label)}</button>`).join('');
     renderPersonaRow();
+    renderSimpleCard();
     renderFieldGrid();
-    updateFieldsToggleLabel();
   }
 
   function renderPersonaRow() {
     const s = S();
     personaRow.innerHTML = Object.keys(PERSONAS).map((key) => {
-      const p = PERSONAS[key];
-      const label = s.personas[key];
-      return `<button class="persona-card${key === selectedPersona ? ' active' : ''}" data-persona="${key}" type="button">
-        <span class="emoji">${p.emoji}</span>
-        <span class="p-name">${escapeHtml(label.name)}</span>
-        <span class="p-sub">${escapeHtml(label.sub)}</span>
+      const p = PERSONAS[key], label = s.personas[key];
+      return `<button class="persona-card ${key === selectedPersona ? ACTIVE_PERSONA : INACTIVE_PERSONA}" data-persona="${key}" type="button">
+        <div class="w-10 h-10 mb-1 flex items-center justify-center text-2xl">${p.emoji}</div>
+        <span class="text-sm font-bold text-slate-800 dark:text-slate-100 leading-tight">${escapeHtml(label.name)}</span>
+        <span class="text-[10px] text-slate-500 dark:text-slate-400 leading-tight mt-0.5">${escapeHtml(label.sub)}</span>
       </button>`;
     }).join('');
   }
 
-  function updateFieldsToggleLabel() {
+  function renderSimpleCard() {
     const s = S();
-    const open = fieldGrid.classList.contains('open');
-    fieldsToggle.textContent = open ? s.fieldsHide : s.fieldsShow;
+    const p = PERSONAS[selectedPersona], label = s.personas[selectedPersona];
+    simpleCard.innerHTML = `
+      <div class="flex items-center gap-3 mb-3">
+        <div class="text-3xl">${p.emoji}</div>
+        <div><h3 class="font-bold text-slate-800 dark:text-slate-100 text-base">${escapeHtml(label.name)}</h3><p class="text-xs text-slate-500 dark:text-slate-400">${escapeHtml(label.sub)}</p></div>
+      </div>
+      <div class="grid grid-cols-2 gap-3 text-xs">
+        <div class="bg-white dark:bg-slate-900 p-2.5 rounded-xl border border-slate-100 dark:border-slate-700"><span class="text-slate-400 dark:text-slate-500 block text-[11px]">${s.simpleLabels.income}</span><span class="font-bold text-emerald-600 dark:text-emerald-400 text-sm">₹${formValues.avg_monthly_income.toLocaleString()}</span></div>
+        <div class="bg-white dark:bg-slate-900 p-2.5 rounded-xl border border-slate-100 dark:border-slate-700"><span class="text-slate-400 dark:text-slate-500 block text-[11px]">${s.simpleLabels.upi}</span><span class="font-bold text-slate-700 dark:text-slate-200 text-sm">${formValues.tx_count_30d}</span></div>
+        <div class="bg-white dark:bg-slate-900 p-2.5 rounded-xl border border-slate-100 dark:border-slate-700"><span class="text-slate-400 dark:text-slate-500 block text-[11px]">${s.simpleLabels.tenure}</span><span class="font-bold text-slate-700 dark:text-slate-200 text-sm">${formValues.tenure_months}</span></div>
+        <div class="bg-white dark:bg-slate-900 p-2.5 rounded-xl border border-slate-100 dark:border-slate-700"><span class="text-slate-400 dark:text-slate-500 block text-[11px]">${s.simpleLabels.geo}</span><span class="font-bold text-slate-700 dark:text-slate-200 text-sm">${s.geographyOptions[formValues.geography]}</span></div>
+      </div>`;
   }
 
   function renderFieldGrid() {
     const s = S();
     const rows = FIELD_ORDER.map((key) => `
-      <div class="field">
-        <label>${escapeHtml(s.fields[key])}</label>
-        <input type="number" data-field="${key}" value="${formValues[key]}" step="${NUM_STEP[key] || '1'}" min="0">
-      </div>
+      <div><label class="block text-slate-400 dark:text-slate-500 mb-1">${escapeHtml(s.fields[key])}</label>
+      <input type="number" data-field="${key}" value="${formValues[key]}" step="${NUM_STEP[key] || '1'}" min="0" class="w-full bg-slate-800 dark:bg-slate-900 border border-slate-700 rounded-lg p-2 text-white text-xs"></div>
     `).join('');
-    const geoOptions = Object.keys(s.geographyOptions).map((k) =>
-      `<option value="${k}" ${formValues.geography === k ? 'selected' : ''}>${escapeHtml(s.geographyOptions[k])}</option>`
-    ).join('');
-    fieldGrid.innerHTML = rows + `
-      <div class="field field-full">
-        <label>${escapeHtml(s.fields.geography)}</label>
-        <select data-field="geography">${geoOptions}</select>
-      </div>`;
+    const geoOptions = Object.keys(s.geographyOptions).map((k) => `<option value="${k}" ${formValues.geography === k ? 'selected' : ''}>${escapeHtml(s.geographyOptions[k])}</option>`).join('');
+    fieldGrid.innerHTML = `<div class="grid grid-cols-2 gap-3">${rows}</div>
+      <div><label class="block text-slate-400 dark:text-slate-500 mb-1">${escapeHtml(s.fields.geography)}</label>
+      <select data-field="geography" class="w-full bg-slate-800 dark:bg-slate-900 border border-slate-700 rounded-lg p-2 text-white text-xs">${geoOptions}</select></div>`;
   }
+
+  function setMode(m) {
+    mode = m;
+    simpleCard.classList.toggle('hidden', m !== 'simple');
+    fieldGrid.classList.toggle('hidden', m !== 'advanced');
+    applyStrings();
+  }
+  tabSimple.addEventListener('click', () => setMode('simple'));
+  tabAdvanced.addEventListener('click', () => setMode('advanced'));
 
   personaRow.addEventListener('click', (e) => {
     const btn = e.target.closest('.persona-card');
     if (!btn) return;
     selectedPersona = btn.dataset.persona;
     formValues = { ...PERSONAS[selectedPersona] };
-    renderPersonaRow();
-    renderFieldGrid();
-    if (selectedPersona === 'custom' && !fieldGrid.classList.contains('open')) {
-      fieldGrid.classList.add('open');
-      updateFieldsToggleLabel();
-    }
-  });
-
-  fieldsToggle.addEventListener('click', () => {
-    fieldGrid.classList.toggle('open');
-    updateFieldsToggleLabel();
+    if (selectedPersona === 'custom') setMode('advanced'); else applyStrings();
   });
 
   fieldGrid.addEventListener('input', (e) => {
-    const el = e.target.closest('[data-field]');
-    if (!el) return;
-    formValues[el.dataset.field] = el.tagName === 'SELECT' ? el.value : Number(el.value);
+    const target = e.target.closest('[data-field]');
+    if (!target) return;
+    formValues[target.dataset.field] = target.tagName === 'SELECT' ? target.value : Number(target.value);
+    if (mode === 'simple') renderSimpleCard();
   });
 
-  function renderResultCard(data) {
+  langSwitch.addEventListener('click', (e) => {
+    const btn = e.target.closest('.lang-btn');
+    if (!btn || btn.disabled) return;
+    currentLang = btn.dataset.lang;
+    applyStrings();
+    renderGreeting();
+  });
+
+  function showResultView() { viewInput.hidden = true; viewResult.hidden = false; }
+  function showInputView() { viewResult.hidden = true; viewInput.hidden = false; }
+  backBtn.addEventListener('click', showInputView);
+
+  function factorDisplayName(factor) {
+    // Reuses the same localized field labels the credit form already shows
+    // (not a separate always-English map) -- strips the unit suffix like
+    // "(₹)" or "(0–1)" since that reads oddly as a factor-row title.
+    const label = S().fields[factor] || factor;
+    return label.replace(/\s*\([^)]*\)\s*$/, '');
+  }
+
+  function renderResult(data) {
     const s = S();
     const c = data.credit_assessment;
-    if (!c) { resultCard.style.display = 'none'; return; }
-    const pct = Math.max(0, Math.min(100, ((c.credit_score - 300) / (850 - 300)) * 100));
-    const repayPct = Math.round(c.calibrated_probability_of_repayment * 100);
+    if (!c) return;
 
-    let html = `<h2>${s.resultHeading}</h2>`;
-    html += `<div class="score-hero"><span class="value">${c.credit_score}</span><span class="range">/ 850</span></div>`;
-    html += `<div class="score-bar-track"><div class="score-bar-fill" style="width:${pct}%"></div></div>`;
-    html += `<div class="score-scale"><span>300</span><span>850</span></div>`;
-    html += `<span class="status-chip ${c.approved ? 'good' : 'bad'}">${c.approved ? '✓ ' + s.approved : '✕ ' + s.notApproved}</span>`;
-    if (c.is_anomalous) {
-      html += `<span class="status-chip warn">⚠ ${s.anomalyWarn}</span>`;
-    }
-    html += `<p class="repay-line">${s.repayLine(repayPct)}</p>`;
-    html += `<div class="factors-heading">${s.factorsHeading}</div>`;
-    c.top_3_factors.forEach((f) => {
+    verdictBadge.textContent = c.approved ? '✓ ' + s.approved : '✕ ' + s.notApproved;
+    verdictBadge.className = 'text-xs font-black tracking-widest px-4 py-1.5 rounded-full uppercase shadow-sm flex items-center gap-1.5 border ' +
+      (c.approved ? 'bg-emerald-100 dark:bg-emerald-950/50 text-emerald-800 dark:text-emerald-400 border-emerald-300 dark:border-emerald-800' : 'bg-rose-100 dark:bg-rose-950/50 text-rose-800 dark:text-rose-400 border-rose-300 dark:border-rose-800');
+
+    const primary = c.top_3_factors[0];
+    primarySignalValue.textContent = primary ? factorDisplayName(primary.factor) : '—';
+    scoreValue.textContent = c.credit_score;
+    repayLine.textContent = s.repayLine(Math.round(c.calibrated_probability_of_repayment * 100));
+
+    if (c.is_anomalous) { anomalyRow.hidden = false; anomalyRow.textContent = s.anomalyLine(c.anomaly_note); }
+    else { anomalyRow.hidden = true; }
+
+    const label = s.personas[selectedPersona];
+    const prefix = label.addressName ? label.addressName + ' — ' : '';
+    quoteText.textContent = prefix + data.answer;
+
+    factorsList.innerHTML = c.top_3_factors.map((f) => {
       const pos = f.direction === 'positive';
-      html += `<div class="factor-row">
-        <span class="sign ${pos ? 'pos' : 'neg'}">${pos ? '+' : '−'}</span>
-        <div class="f-body"><p>${escapeHtml(f.plain_english)}</p><p class="f-action">${escapeHtml(f.action)}</p></div>
+      const pct = Math.min(100, Math.abs(f.shap_contribution) * 40);
+      return `<div class="bg-white dark:bg-slate-800 rounded-xl p-3 border border-slate-100 dark:border-slate-700 shadow-sm">
+        <div class="flex justify-between items-center mb-1 text-xs">
+          <span class="font-bold text-slate-800 dark:text-slate-100">${escapeHtml(factorDisplayName(f.factor))}</span>
+          <span class="font-bold ${pos ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40' : 'text-rose-500 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/40'} px-1.5 py-0.5 rounded text-[11px]">${pos ? '+' : ''}${f.shap_contribution.toFixed(2)}</span>
+        </div>
+        <div class="w-full bg-slate-100 dark:bg-slate-700 h-2 rounded-full overflow-hidden mb-2"><div class="${pos ? 'bg-emerald-500' : 'bg-rose-500'} h-full rounded-full" style="width:${pct}%"></div></div>
+        <p class="text-[11px] text-slate-500 dark:text-slate-400 mb-1">${escapeHtml(f.plain_english)}</p>
+        <div class="flex items-center gap-1 text-[11px] ${pos ? 'text-blue-600 dark:text-blue-400' : 'text-amber-600 dark:text-amber-400'} font-semibold"><i class="fa-solid fa-bolt text-[10px]"></i> ${escapeHtml(f.action)}</div>
       </div>`;
-    });
-    html += `<div class="result-meta">
-      <span>${s.metaLatency(Math.round(c.latency_ms))}</span>
-      <span>${c.fairness_mitigation_applied ? s.metaFair : s.metaPlain}</span>
-      <span>${s.metaBand(c.income_band)}</span>
-    </div>`;
+    }).join('');
 
-    resultCard.innerHTML = html;
-    resultCard.style.display = 'block';
-    resultCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    disclaimerText.textContent = data.disclaimer || '';
+    metaRow.innerHTML = `<span>${s.metaLatency(Math.round(c.latency_ms))}</span><span>${c.fairness_mitigation_applied ? s.metaFair : s.metaPlain}</span><span>${s.metaBand(c.income_band)}</span>`;
+
+    showResultView();
   }
 
   async function runCreditAssessment() {
-    creditError.style.display = 'none';
+    creditError.hidden = true;
     scoreBtn.disabled = true;
     scoreBtn.dataset.loading = '1';
     scoreBtn.textContent = S().scoreBtnLoading;
@@ -853,140 +418,96 @@
       const res = await fetch(API_BASE + '/agent/run', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          query: 'Can I get a loan?',
-          session_id: sessionId,
-          response_language: currentLang,
-          credit_signals: { ...formValues },
-        }),
+        body: JSON.stringify({ query: 'Can I get a loan?', session_id: sessionId, response_language: currentLang, credit_signals: { ...formValues } }),
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       if (!data.credit_assessment) throw new Error(data.answer || 'no assessment returned');
-      renderResultCard(data);
+      renderResult(data);
     } catch (e) {
       creditError.textContent = S().creditErr(e.message);
-      creditError.style.display = 'block';
+      creditError.hidden = false;
     } finally {
       scoreBtn.disabled = false;
       delete scoreBtn.dataset.loading;
       scoreBtn.textContent = S().scoreBtn;
     }
   }
-
   scoreBtn.addEventListener('click', runCreditAssessment);
-
-  function renderGreeting() {
-    thread.innerHTML = '';
-    const el = document.createElement('div');
-    el.className = 'turn assistant';
-    el.innerHTML = `<div class="bubble">${escapeHtml(S().greeting)}</div>`;
-    thread.appendChild(el);
-  }
 
   async function checkHealth() {
     try {
       const r = await fetch(API_BASE + '/health', { method: 'GET' });
       isLive = r.ok;
-      statusDot.className = 'dot ' + (r.ok ? 'ok' : 'bad');
+      statusDot.className = 'w-1.5 h-1.5 rounded-full ' + (r.ok ? 'bg-emerald-500' : 'bg-rose-500');
+      if (!r.ok) statusDot.dataset.bad = '1';
     } catch (e) {
       isLive = false;
-      statusDot.className = 'dot bad';
+      statusDot.className = 'w-1.5 h-1.5 rounded-full bg-rose-500';
+      statusDot.dataset.bad = '1';
     }
     applyStrings();
   }
-  checkHealth();
 
   function addUserTurn(text) {
-    const el = document.createElement('div');
-    el.className = 'turn user';
-    el.innerHTML = `<div class="bubble">${escapeHtml(text)}</div>`;
-    thread.appendChild(el);
+    const wrap = document.createElement('div');
+    wrap.className = 'flex justify-end';
+    wrap.innerHTML = `<div class="max-w-[85%] bg-blue-600 text-white text-sm rounded-2xl rounded-br-sm px-3.5 py-2.5">${escapeHtml(text)}</div>`;
+    thread.appendChild(wrap);
     thread.scrollTop = thread.scrollHeight;
   }
 
   function addThinkingTurn() {
-    const el = document.createElement('div');
-    el.className = 'turn assistant';
-    el.innerHTML = `<div class="bubble"><div class="thinking"><span></span><span></span><span></span></div></div>`;
-    thread.appendChild(el);
+    const wrap = document.createElement('div');
+    wrap.className = 'flex justify-start';
+    wrap.innerHTML = `<div class="bg-slate-100 dark:bg-slate-800 rounded-2xl rounded-bl-sm px-4 py-3 flex gap-1"><span class="w-1.5 h-1.5 rounded-full bg-slate-400 animate-bounce"></span><span class="w-1.5 h-1.5 rounded-full bg-slate-400 animate-bounce" style="animation-delay:0.15s"></span><span class="w-1.5 h-1.5 rounded-full bg-slate-400 animate-bounce" style="animation-delay:0.3s"></span></div>`;
+    thread.appendChild(wrap);
     thread.scrollTop = thread.scrollHeight;
-    return el;
+    return wrap;
   }
 
   let traceSeq = 0;
-
-  function routeLabel(route) {
-    const s = S();
-    return (route && s.routeLabels[route]) || '—';
-  }
+  function routeLabel(route) { const s = S(); return (route && s.routeLabels[route]) || '—'; }
 
   function buildTraceCard(data) {
     const s = S();
-    const routeClass = data.route ? `route-${data.route}` : '';
     const hasScore = typeof data.top_score === 'number';
-    const scorePct = hasScore ? Math.max(0, Math.min(1, data.top_score)) * 100 : 0;
-
-    let rows = '';
-    rows += `<div class="trace-row">
-      <span class="trace-label">${s.traceRoute}</span>
-      <span class="pill ${routeClass}">${routeLabel(data.route)}</span>
-    </div>`;
-
+    let rows = `<div class="flex items-center gap-2 mb-1.5"><span class="text-[9px] uppercase tracking-wide text-slate-400 dark:text-slate-500 font-bold w-16 flex-shrink-0">${s.traceRoute}</span><span class="text-[11px] font-mono px-2 py-0.5 rounded bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200">${routeLabel(data.route)}</span></div>`;
     if (hasScore) {
-      rows += `<div class="trace-row">
-        <span class="trace-label">${s.traceGrounding}</span>
-        <div class="mini-meter"><div class="mini-meter-fill ${data.sufficient ? '' : 'low'}" style="width:${scorePct}%"></div></div>
-        <span class="pill status-${data.sufficient ? 'yes' : 'no'}">${data.sufficient ? s.groundedYes : s.groundedNo}</span>
-      </div>`;
+      const pct = Math.max(0, Math.min(1, data.top_score)) * 100;
+      rows += `<div class="flex items-center gap-2 mb-1.5"><span class="text-[9px] uppercase tracking-wide text-slate-400 dark:text-slate-500 font-bold w-16 flex-shrink-0">${s.traceGrounding}</span><div class="flex-1 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden"><div class="h-full ${data.sufficient ? 'bg-emerald-500' : 'bg-amber-500'} rounded-full" style="width:${pct}%"></div></div><span class="text-[10px] font-mono text-slate-500">${data.sufficient ? s.groundedYes : s.groundedNo}</span></div>`;
     }
-
     if (data.sources && data.sources.length) {
-      rows += `<div class="trace-row">
-        <span class="trace-label">${s.traceSources}</span>
-        <span style="font-family:'IBM Plex Mono',monospace;font-size:11px;">${data.sources.map(escapeHtml).join(', ')}</span>
-      </div>`;
+      rows += `<div class="flex items-start gap-2 mb-1.5"><span class="text-[9px] uppercase tracking-wide text-slate-400 dark:text-slate-500 font-bold w-16 flex-shrink-0">${s.traceSources}</span><span class="text-[10px] font-mono text-slate-500">${data.sources.map(escapeHtml).join(', ')}</span></div>`;
     }
-
-    rows += `<div class="trace-row">
-      <span class="trace-label">${s.traceStatus}</span>
-      <span class="pill status-${data.escalate_to_human ? 'no' : 'yes'}">${data.escalate_to_human ? s.resultEscalated : s.resultAnswered}</span>
-    </div>`;
-
-    rows += `<div class="trace-row">
-      <span class="trace-label">${s.traceConfidence}</span>
-      <span class="num">${(data.confidence * 100).toFixed(0)}%</span>
-    </div>`;
-
+    rows += `<div class="flex items-center gap-2"><span class="text-[9px] uppercase tracking-wide text-slate-400 dark:text-slate-500 font-bold w-16 flex-shrink-0">${s.traceStatus}</span><span class="text-[11px] font-mono ${data.escalate_to_human ? 'text-amber-600' : 'text-emerald-600'}">${data.escalate_to_human ? s.resultEscalated : s.resultAnswered}</span></div>`;
     return rows;
   }
 
   function addAssistantTurn(data) {
-    const el = document.createElement('div');
-    el.className = 'turn assistant';
-    const cites = (data.sources || []).map(x => `<span class="cite">${escapeHtml(x)}</span>`).join('');
-    const disclaimer = data.disclaimer ? `<div class="disclaimer">${escapeHtml(data.disclaimer)}</div>` : '';
+    const wrap = document.createElement('div');
+    wrap.className = 'flex flex-col items-start gap-1';
+    const cites = (data.sources || []).map((x) => `<span class="text-[9px] font-mono bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400 px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-600">${escapeHtml(x)}</span>`).join('');
+    const disclaimer = data.disclaimer ? `<div class="text-[11px] italic text-slate-400 mt-1.5">${escapeHtml(data.disclaimer)}</div>` : '';
     const traceId = 'trace-' + (traceSeq++);
-    el.innerHTML = `
-      <div class="bubble${data.escalate_to_human ? ' escalated' : ''}">
+    wrap.innerHTML = `
+      <div class="max-w-[90%] ${data.escalate_to_human ? 'bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-900' : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700'} border text-sm text-slate-800 dark:text-slate-100 rounded-2xl rounded-bl-sm px-3.5 py-2.5">
         ${escapeHtml(data.answer)}
-        ${cites ? `<div class="cite-row">${cites}</div>` : ''}
+        ${cites ? `<div class="flex flex-wrap gap-1.5 mt-2 pt-2 border-t border-dashed border-slate-200 dark:border-slate-600">${cites}</div>` : ''}
         ${disclaimer}
       </div>
-      <button class="trace-toggle" data-target="${traceId}" type="button">
-        <span class="chev">›</span><span class="toggle-label">${S().traceShow}</span>
-      </button>
-      <div class="trace-card" id="${traceId}">${buildTraceCard(data)}</div>
+      <button class="trace-toggle text-[11px] text-slate-400 hover:text-slate-600 underline decoration-dotted" data-target="${traceId}" type="button">${S().traceShow}</button>
+      <div class="trace-card hidden bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl p-3 w-full" id="${traceId}">${buildTraceCard(data)}</div>
     `;
-    thread.appendChild(el);
+    thread.appendChild(wrap);
     thread.scrollTop = thread.scrollHeight;
   }
 
   function addErrorTurn(message) {
-    const el = document.createElement('div');
-    el.className = 'turn assistant';
-    el.innerHTML = `<div class="bubble escalated">${escapeHtml(message)}</div>`;
-    thread.appendChild(el);
+    const wrap = document.createElement('div');
+    wrap.className = 'flex justify-start';
+    wrap.innerHTML = `<div class="max-w-[85%] bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 text-sm text-slate-800 dark:text-slate-100 rounded-2xl rounded-bl-sm px-3.5 py-2.5">${escapeHtml(message)}</div>`;
+    thread.appendChild(wrap);
     thread.scrollTop = thread.scrollHeight;
   }
 
@@ -994,79 +515,56 @@
     const btn = e.target.closest('.trace-toggle');
     if (!btn) return;
     const card = document.getElementById(btn.dataset.target);
-    const isOpen = card.classList.toggle('open');
-    btn.classList.toggle('open', isOpen);
-    btn.querySelector('.toggle-label').textContent = isOpen ? S().traceHide : S().traceShow;
+    const isOpen = card.classList.toggle('hidden') === false;
+    btn.textContent = isOpen ? S().traceHide : S().traceShow;
   });
+
+  function renderGreeting() {
+    thread.innerHTML = '';
+    const wrap = document.createElement('div');
+    wrap.className = 'flex justify-start';
+    wrap.innerHTML = `<div class="max-w-[90%] bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm text-slate-800 dark:text-slate-100 rounded-2xl rounded-bl-sm px-3.5 py-2.5">${escapeHtml(S().greeting)}</div>`;
+    thread.appendChild(wrap);
+  }
 
   async function sendMessage(queryText, displayText) {
     if (!queryText.trim()) return;
-    input.value = '';
-    input.style.height = 'auto';
+    input.value = ''; input.style.height = 'auto';
     sendBtn.disabled = true;
     addUserTurn(displayText || queryText);
     const thinkingEl = addThinkingTurn();
-
     try {
       const res = await fetch(API_BASE + '/agent/run', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ query: queryText, session_id: sessionId, response_language: currentLang }),
       });
       thinkingEl.remove();
-      if (!res.ok) {
-        addErrorTurn(S().errHttp(res.status));
-        return;
-      }
+      if (!res.ok) { addErrorTurn(S().errHttp(res.status)); return; }
       const data = await res.json();
       addAssistantTurn(data);
-      isLive = true;
-      statusDot.className = 'dot ok';
+      isLive = true; statusDot.className = 'w-1.5 h-1.5 rounded-full bg-emerald-500'; delete statusDot.dataset.bad;
       statusText.textContent = S().statusLive;
     } catch (e) {
       thinkingEl.remove();
       addErrorTurn(S().errNetwork);
-      isLive = false;
-      statusDot.className = 'dot bad';
+      isLive = false; statusDot.className = 'w-1.5 h-1.5 rounded-full bg-rose-500'; statusDot.dataset.bad = '1';
       statusText.textContent = S().statusDown;
     } finally {
-      sendBtn.disabled = false;
-      input.focus();
+      sendBtn.disabled = false; input.focus();
     }
   }
-
   sendBtn.addEventListener('click', () => sendMessage(input.value));
-  input.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      sendMessage(input.value);
-    }
-  });
-  input.addEventListener('input', () => {
-    input.style.height = 'auto';
-    input.style.height = Math.min(input.scrollHeight, 120) + 'px';
-  });
-
+  input.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(input.value); } });
+  input.addEventListener('input', () => { input.style.height = 'auto'; input.style.height = Math.min(input.scrollHeight, 112) + 'px'; });
   chipsEl.addEventListener('click', (e) => {
     const btn = e.target.closest('.chip');
     if (!btn) return;
     const chip = S().chips[Number(btn.dataset.idx)];
-    // Send the verified English query for reliable retrieval, but show the
-    // user the label in their chosen language -- otherwise a Hindi speaker
-    // tapping a Hindi-labeled chip would see their own message echo back in
-    // English, which reads as if the app ignored what they tapped.
     sendMessage(chip.query, chip.label);
   });
 
-  langSwitch.addEventListener('click', (e) => {
-    const btn = e.target.closest('.lang-btn');
-    if (!btn || btn.disabled) return;
-    currentLang = btn.dataset.lang;
-    langSwitch.querySelectorAll('.lang-btn').forEach(b => b.classList.toggle('active', b === btn));
-    applyStrings();
-    renderGreeting();
-  });
-
+  setMode('simple');
   applyStrings();
   renderGreeting();
+  checkHealth();
 </script>
