@@ -2,7 +2,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Ask FinBuddy</title>
 <script src="https://cdn.tailwindcss.com"></script>
-<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
 <style>
   body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
   .custom-scrollbar::-webkit-scrollbar { width: 4px; }
@@ -56,7 +55,7 @@
   <div id="view-result" hidden class="px-5 pb-5 custom-scrollbar overflow-y-auto max-h-[70vh]">
     <div class="flex justify-between items-center mb-3 pt-1">
       <button id="backBtn" class="text-blue-600 dark:text-blue-400 text-xs font-bold flex items-center gap-1">
-        <i class="fa-solid fa-arrow-left"></i> <span id="backLabel"></span>
+        <span aria-hidden="true">&larr;</span> <span id="backLabel"></span>
       </button>
       <h2 class="text-sm font-bold text-slate-800 dark:text-slate-100" id="resultTitle"></h2>
       <span class="bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 text-[9px] font-bold px-2 py-0.5 rounded border border-emerald-200 dark:border-emerald-900" id="liveBadge"></span>
@@ -399,7 +398,7 @@
         </div>
         <div class="w-full bg-slate-100 dark:bg-slate-700 h-2 rounded-full overflow-hidden mb-2"><div class="${pos ? 'bg-emerald-500' : 'bg-rose-500'} h-full rounded-full" style="width:${pct}%"></div></div>
         <p class="text-[11px] text-slate-500 dark:text-slate-400 mb-1">${escapeHtml(f.plain_english)}</p>
-        <div class="flex items-center gap-1 text-[11px] ${pos ? 'text-blue-600 dark:text-blue-400' : 'text-amber-600 dark:text-amber-400'} font-semibold"><i class="fa-solid fa-bolt text-[10px]"></i> ${escapeHtml(f.action)}</div>
+        <div class="flex items-center gap-1 text-[11px] ${pos ? 'text-blue-600 dark:text-blue-400' : 'text-amber-600 dark:text-amber-400'} font-semibold"><span aria-hidden="true">&#9889;</span> ${escapeHtml(f.action)}</div>
       </div>`;
     }).join('');
 
