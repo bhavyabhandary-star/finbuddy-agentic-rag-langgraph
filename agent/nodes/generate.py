@@ -10,9 +10,11 @@ import json
 import os
 from abc import ABC, abstractmethod
 
+from pydantic import ValidationError
+
 from agent.state import AgentState
 from guardrails.input_guardrails import sanitize_retrieved_text
-from guardrails.output_guardrails import validate_structured_output
+from guardrails.output_guardrails import is_expected_script, validate_structured_output
 from observability.tracing import RunTracer
 from tools.schemas import AgentResponse
 
@@ -145,6 +147,22 @@ CREDIT_ASSESSMENT_DISCLAIMER = {
 
 LANGUAGE_NAMES = {"en": "English", "hi": "Hindi", "kn": "Kannada"}
 
+# Fixed, human-authored fallback answer for when the model's own generation
+# fails the is_expected_script guardrail twice in a row -- never LLM-generated,
+# same reasoning as CREDIT_ASSESSMENT_DISCLAIMER: a user-facing string that
+# must be guaranteed to actually be in the right script can't depend on the
+# same model that just failed to produce that script.
+WRONG_SCRIPT_FALLBACK_ANSWER = {
+    "hi": (
+        "क्षमा करें, मुझे यकीन नहीं है कि मैं अभी इस भाषा में सही जवाब दे पाऊंगी। "
+        "कृपया अंग्रेज़ी में पूछें — मैं मदद करने की पूरी कोशिश करूंगी।"
+    ),
+    "kn": (
+        "ಕ್ಷಮಿಸಿ, ನಾನು ಈ ಭಾಷೆಯಲ್ಲಿ ಸರಿಯಾಗಿ ಉತ್ತರಿಸಬಲ್ಲೆ ಎಂದು ಖಚಿತವಾಗಿಲ್ಲ. "
+        "ದಯವಿಟ್ಟು ಇಂಗ್ಲಿಷ್‌ನಲ್ಲಿ ಕೇಳಿ — ನಾನು ಸಹಾಯ ಮಾಡಲು ಪ್ರಯತ್ನಿಸುತ್ತೇನೆ."
+    ),
+}
+
 
 def _deterministic_sources(state: AgentState) -> list[str]:
     """Real bug found end-to-end testing (milestone step 6): the prompt asked
@@ -185,17 +203,59 @@ def generate_node(
     state: AgentState, provider: LLMProvider | None = None, tracer: RunTracer | None = None
 ) -> AgentState:
     provider = provider or ClaudeProvider()
-    data_section = _build_data_section(state)
-    language_name = LANGUAGE_NAMES.get(state.get("response_language") or "en", "English")
-    system_prompt = SYSTEM_PROMPT_TEMPLATE.format(data=data_section, language_name=language_name)
+    response_language = state.get("response_language") or "en"
+    language_name = LANGUAGE_NAMES.get(response_language, "English")
 
-    raw = provider.complete(system_prompt, state["query"], MAX_OUTPUT_TOKENS)
+    if response_language == "kn":
+        # Unconditional fallback, not a retry target: real production calls
+        # (including a fresh 3-run re-test after the hi/kn wrong-script retry
+        # below was added) show this project's current provider doesn't just
+        # occasionally pick the wrong script for Kannada -- even when it does
+        # stay in Kannada Unicode script, the text is incoherent gibberish,
+        # not real Kannada (stray Latin/Thai/Devanagari fragments mixed in).
+        # is_expected_script can only catch wrong-script output, not
+        # wrong-script-passing-but-meaningless content, so retrying and
+        # hoping is pointless here -- skip generation entirely rather than
+        # spend a real LLM call on output that's already known to be
+        # unusable and would just get discarded.
+        parsed: AgentResponse = AgentResponse(
+            answer=WRONG_SCRIPT_FALLBACK_ANSWER["kn"], sources=[], confidence=0.0, escalate_to_human=False
+        )
+    else:
+        data_section = _build_data_section(state)
+        system_prompt = SYSTEM_PROMPT_TEMPLATE.format(data=data_section, language_name=language_name)
 
-    def _regenerate(error_message: str) -> str:
-        retry_prompt = system_prompt + f"\n\nYour previous output was invalid: {error_message}\nReturn ONLY valid JSON."
-        return provider.complete(retry_prompt, state["query"], MAX_OUTPUT_TOKENS)
+        raw = provider.complete(system_prompt, state["query"], MAX_OUTPUT_TOKENS)
 
-    parsed: AgentResponse = validate_structured_output(raw, AgentResponse, regenerate=_regenerate)
+        def _regenerate(error_message: str) -> str:
+            retry_prompt = system_prompt + f"\n\nYour previous output was invalid: {error_message}\nReturn ONLY valid JSON."
+            return provider.complete(retry_prompt, state["query"], MAX_OUTPUT_TOKENS)
+
+        parsed = validate_structured_output(raw, AgentResponse, regenerate=_regenerate)
+
+        if not is_expected_script(parsed.answer, response_language):
+            # One retry, same spirit as the JSON-validation retry above:
+            # smaller open models occasionally answer hi requests in the
+            # wrong script (verified on real production calls -- see
+            # is_expected_script's docstring), and a retry sometimes
+            # genuinely fixes it by chance rather than repeating the same
+            # failure deterministically. (Kannada never reaches this branch
+            # -- see the unconditional fallback above.)
+            retry_prompt = system_prompt + (
+                f"\n\nYour previous answer was not written in {language_name}. "
+                f"Rewrite the answer fully in {language_name}."
+            )
+            try:
+                retried_raw = provider.complete(retry_prompt, state["query"], MAX_OUTPUT_TOKENS)
+                retried = validate_structured_output(retried_raw, AgentResponse, regenerate=_regenerate)
+            except ValidationError:
+                retried = None
+            if retried is not None and is_expected_script(retried.answer, response_language):
+                parsed = retried
+            else:
+                fallback_answer = WRONG_SCRIPT_FALLBACK_ANSWER.get(response_language)
+                if fallback_answer:
+                    parsed = parsed.model_copy(update={"answer": fallback_answer})
 
     # Classical override, not a request: don't trust the model's own
     # escalate_to_human when the classical sufficiency check already said the
@@ -211,7 +271,7 @@ def generate_node(
     # production FinBuddy's low-confidence escalation string is fixed, not
     # LLM-translated: compliance-relevant wording must be guaranteed verbatim.
     disclaimer = (
-        CREDIT_ASSESSMENT_DISCLAIMER.get(state.get("response_language") or "en", CREDIT_ASSESSMENT_DISCLAIMER["en"])
+        CREDIT_ASSESSMENT_DISCLAIMER.get(response_language, CREDIT_ASSESSMENT_DISCLAIMER["en"])
         if state.get("route") == "credit_assessment"
         else None
     )

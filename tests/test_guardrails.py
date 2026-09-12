@@ -1,5 +1,5 @@
 from guardrails.input_guardrails import contains_pii, sanitize_retrieved_text
-from guardrails.output_guardrails import validate_structured_output
+from guardrails.output_guardrails import is_expected_script, validate_structured_output
 from guardrails.tool_policy import SideEffectNotConfirmedError, require_confirmation, safe_tool_call
 from tools.schemas import AgentResponse
 
@@ -49,3 +49,33 @@ def test_validate_structured_output_retries_and_recovers():
     good = '{"answer": "hi", "sources": [], "confidence": 0.5, "escalate_to_human": false}'
     result = validate_structured_output(bad, AgentResponse, regenerate=lambda err: good)
     assert result.confidence == 0.5
+
+
+def test_is_expected_script_passes_english_regardless_of_content():
+    assert is_expected_script("Yes, you can get a loan.", "en") is True
+
+
+def test_is_expected_script_passes_correct_devanagari_hindi():
+    assert is_expected_script("आपका क्रेडिट स्कोर अच्छा है।", "hi") is True
+
+
+def test_is_expected_script_passes_correct_kannada_script():
+    assert is_expected_script("ನಿಮ್ಮ ಕ್ರೆಡಿಟ್ ಸ್ಕೋರ್ ಉತ್ತಮವಾಗಿದೆ.", "kn") is True
+
+
+def test_is_expected_script_fails_english_answer_for_kannada_request():
+    # Real production example: a kn request answered almost entirely in
+    # English with stray Han/Bopomofo characters prepended.
+    text = "ㄧ过关isable consent for using personal data should be free, specific, informed, and clear."
+    assert is_expected_script(text, "kn") is False
+
+
+def test_is_expected_script_fails_devanagari_answer_for_kannada_request():
+    # Real production example: a kn request answered in Hindi (Devanagari),
+    # not Kannada script at all.
+    text = "डिफॉल्ट लॉस गारंटी कवर की सीमा राशी दो करोड़ रुपये हो सकती है।"
+    assert is_expected_script(text, "kn") is False
+
+
+def test_is_expected_script_tolerates_a_few_english_loanwords_in_hindi():
+    assert is_expected_script("आपका UPI खाता सक्रिय है और FinBuddy इसे देख सकता है।", "hi") is True
