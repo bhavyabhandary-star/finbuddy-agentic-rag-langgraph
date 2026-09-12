@@ -2,26 +2,39 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Ask FinBuddy</title>
 <script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
-  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+  body {
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: radial-gradient(circle at 50% -10%, #e0e7ff 0%, #f8fafc 45%, #f1f5f9 100%);
+  }
+  @media (prefers-color-scheme: dark) {
+    body:not([data-theme="light"]) { background: radial-gradient(circle at 50% -10%, #1e2547 0%, #0b1220 45%, #060a14 100%); }
+  }
+  body[data-theme="dark"] { background: radial-gradient(circle at 50% -10%, #1e2547 0%, #0b1220 45%, #060a14 100%); }
   .custom-scrollbar::-webkit-scrollbar { width: 4px; }
   .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
   [hidden] { display: none !important; }
+  .glow-blue { box-shadow: 0 10px 28px -6px rgba(37, 99, 235, 0.38); }
+  .card-shadow { box-shadow: 0 1px 2px rgba(15,23,42,0.04), 0 8px 20px -6px rgba(15,23,42,0.06); }
 </style>
 
-<div class="bg-slate-100 dark:bg-slate-950 min-h-screen flex items-start sm:items-center justify-center p-2 sm:p-4">
-<div class="w-full max-w-md bg-white dark:bg-slate-900 rounded-3xl shadow-xl overflow-hidden border border-slate-200 dark:border-slate-800 flex flex-col">
+<div class="min-h-screen flex items-start sm:items-center justify-center p-2 sm:p-4 text-slate-800 dark:text-slate-100">
+<div class="w-full max-w-md bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl rounded-[28px] card-shadow shadow-2xl overflow-hidden border border-white/60 dark:border-slate-700/60 flex flex-col">
 
   <!-- Header (always visible) -->
   <div class="p-5 pb-0">
-    <div class="flex justify-between items-start mb-4">
-      <div>
-        <h1 class="text-2xl font-extrabold text-blue-600 dark:text-blue-400" id="brandName">FinBuddy</h1>
-        <p class="text-xs text-slate-500 dark:text-slate-400 font-medium" id="brandTagline"></p>
+    <div class="flex justify-between items-center mb-4">
+      <div class="flex items-center gap-2">
+        <div class="w-8 h-8 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center text-white text-sm font-extrabold shadow-md shadow-blue-500/30 flex-shrink-0">F</div>
+        <div>
+          <h1 class="text-lg font-extrabold tracking-tight leading-none" id="brandName">FinBuddy</h1>
+          <p class="text-[10px] text-slate-400 dark:text-slate-500 font-semibold tracking-wide uppercase mt-0.5" id="brandTagline"></p>
+        </div>
       </div>
-      <div class="flex items-center gap-1.5 bg-slate-50 dark:bg-slate-800 rounded-full px-2.5 py-1">
-        <span id="statusDot" class="w-1.5 h-1.5 rounded-full bg-slate-300"></span>
-        <span id="statusText" class="text-[10px] font-semibold text-slate-500 dark:text-slate-400"></span>
+      <div id="statusPill" class="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800 rounded-full px-2.5 py-1.5 transition-colors">
+        <span id="statusDot" class="w-1.5 h-1.5 rounded-full bg-slate-300 animate-pulse motion-reduce:animate-none"></span>
+        <span id="statusText" class="text-[10px] font-bold text-slate-500 dark:text-slate-400"></span>
       </div>
     </div>
     <div class="grid grid-cols-3 gap-2 mb-4 text-xs font-bold" id="langSwitch" role="group" aria-label="Language">
@@ -33,76 +46,84 @@
 
   <!-- VIEW: credit-assessment input -->
   <div id="view-input" class="px-5 pb-5">
-    <h2 class="text-[11px] font-bold text-slate-400 dark:text-slate-500 tracking-wider uppercase mb-3" id="creditHeading"></h2>
-    <p class="text-xs text-slate-500 dark:text-slate-400 mb-4" id="creditHint"></p>
+    <div class="flex items-center justify-between mb-3">
+      <h2 class="text-[11px] font-extrabold text-slate-400 dark:text-slate-500 tracking-wider uppercase" id="creditHeading"></h2>
+      <span class="text-[9px] font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/40 px-2 py-0.5 rounded-md" id="personaCount"></span>
+    </div>
+    <p class="text-xs text-slate-500 dark:text-slate-400 mb-4 leading-relaxed" id="creditHint"></p>
 
     <div class="grid grid-cols-3 gap-2.5 mb-4" id="personaRow"></div>
 
-    <div class="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl mb-4 text-xs font-semibold">
-      <button id="tabSimple" class="mode-tab flex-1 py-1.5 rounded-lg transition-all"></button>
-      <button id="tabAdvanced" class="mode-tab flex-1 py-1.5 rounded-lg transition-all"></button>
+    <div class="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-2xl mb-4 text-xs font-bold">
+      <button id="tabSimple" class="mode-tab flex-1 py-2 rounded-xl transition-all duration-200"></button>
+      <button id="tabAdvanced" class="mode-tab flex-1 py-2 rounded-xl transition-all duration-200"></button>
     </div>
 
-    <div id="simpleCard" class="bg-slate-50 dark:bg-slate-800/60 rounded-2xl p-4 border border-slate-200/80 dark:border-slate-700 mb-4"></div>
-    <div id="fieldGrid" class="hidden bg-slate-900 dark:bg-black text-white rounded-2xl p-4 border border-slate-800 mb-4 text-xs space-y-3"></div>
+    <div id="simpleCard" class="bg-gradient-to-b from-slate-50 to-white dark:from-slate-800/60 dark:to-slate-800/30 rounded-2xl p-4 border border-slate-200/70 dark:border-slate-700 card-shadow mb-4"></div>
+    <div id="fieldGrid" class="hidden bg-slate-900 dark:bg-black text-white rounded-2xl p-4 border border-slate-800 shadow-lg mb-4 text-xs space-y-3"></div>
 
-    <button id="scoreBtn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3.5 rounded-2xl shadow-lg shadow-blue-500/25 transition-all text-sm"></button>
+    <button id="scoreBtn" class="w-full bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-extrabold py-4 rounded-2xl glow-blue transition-all text-sm tracking-wide flex items-center justify-center gap-2"></button>
     <div id="creditError" hidden class="mt-2 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 text-rose-700 dark:text-rose-300 rounded-xl p-3 text-xs"></div>
-    <p class="text-center text-[10px] text-slate-400 dark:text-slate-500 mt-3" id="creditFooter"></p>
+    <p class="text-center text-[10px] text-slate-400 dark:text-slate-500 font-medium mt-2.5" id="creditFooter"></p>
   </div>
 
   <!-- VIEW: credit-assessment result -->
   <div id="view-result" hidden class="px-5 pb-5 custom-scrollbar overflow-y-auto max-h-[70vh]">
-    <div class="flex justify-between items-center mb-3 pt-1">
-      <button id="backBtn" class="text-blue-600 dark:text-blue-400 text-xs font-bold flex items-center gap-1">
-        <span aria-hidden="true">&larr;</span> <span id="backLabel"></span>
+    <div class="flex justify-between items-center mb-4 pb-2.5 pt-1 border-b border-slate-100 dark:border-slate-800">
+      <button id="backBtn" class="text-blue-600 dark:text-blue-400 text-xs font-extrabold flex items-center gap-1.5">
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>
+        <span id="backLabel"></span>
       </button>
-      <h2 class="text-sm font-bold text-slate-800 dark:text-slate-100" id="resultTitle"></h2>
-      <span class="bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 text-[9px] font-bold px-2 py-0.5 rounded border border-emerald-200 dark:border-emerald-900" id="liveBadge"></span>
+      <h2 class="text-[11px] font-extrabold tracking-wider uppercase text-slate-400 dark:text-slate-500" id="resultTitle"></h2>
+      <span class="inline-flex items-center gap-1 bg-gradient-to-r from-emerald-500 to-teal-500 text-white text-[9px] font-extrabold px-2.5 py-1 rounded-full shadow-sm" id="liveBadge"></span>
     </div>
 
     <div class="flex justify-center mb-4">
-      <span id="verdictBadge" class="text-xs font-black tracking-widest px-4 py-1.5 rounded-full uppercase shadow-sm flex items-center gap-1.5 border"></span>
+      <span id="verdictBadge" class="text-xs font-black tracking-widest px-5 py-2 rounded-full uppercase shadow-sm flex items-center gap-2 border"></span>
     </div>
 
-    <div class="bg-white dark:bg-slate-800 rounded-2xl p-4 border border-slate-100 dark:border-slate-700 shadow-sm mb-4">
+    <div class="bg-gradient-to-br from-white to-slate-50/80 dark:from-slate-800 dark:to-slate-800/60 rounded-2xl p-4 border border-slate-200/70 dark:border-slate-700 card-shadow mb-4">
       <div class="flex justify-between items-start">
         <div>
-          <span class="text-[11px] text-slate-400 dark:text-slate-500 font-medium block" id="primarySignalLabel"></span>
-          <span id="primarySignalValue" class="text-xs font-bold text-slate-800 dark:text-slate-100"></span>
+          <span class="text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider block" id="primarySignalLabel"></span>
+          <span id="primarySignalValue" class="text-xs font-bold text-slate-800 dark:text-slate-100 mt-0.5 block"></span>
+          <span id="fairnessTag" class="inline-flex items-center gap-1 mt-2 bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-400 text-[10px] font-bold px-2 py-0.5 rounded-md border border-blue-200 dark:border-blue-900"></span>
         </div>
         <div class="text-right">
-          <span class="text-[11px] text-slate-400 dark:text-slate-500 font-medium block" id="scoreLabel"></span>
-          <span id="scoreValue" class="text-xl font-extrabold text-blue-600 dark:text-blue-400"></span>
-          <span class="block text-[10px] text-slate-400 dark:text-slate-500" id="repayLine"></span>
+          <span class="text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider block" id="scoreLabel"></span>
+          <span id="scoreValue" class="text-2xl font-black text-blue-600 dark:text-blue-400 mt-0.5 block"></span>
+          <span class="block text-[10px] text-slate-400 dark:text-slate-500 font-semibold" id="repayLine"></span>
         </div>
       </div>
       <div id="anomalyRow" hidden class="mt-3 bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-400 text-[11px] font-semibold px-2.5 py-1.5 rounded-lg border border-amber-200 dark:border-amber-900"></div>
     </div>
 
-    <div class="bg-blue-50/70 dark:bg-blue-950/30 border-l-4 border-blue-600 p-3 rounded-r-xl mb-5">
-      <div class="text-blue-600 dark:text-blue-400 font-extrabold text-lg leading-none mb-1">&ldquo;</div>
-      <p id="quoteText" class="text-xs font-bold text-slate-800 dark:text-slate-100 italic leading-relaxed"></p>
+    <div class="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/20 border-l-4 border-blue-600 p-3.5 rounded-r-2xl mb-5">
+      <div class="flex items-center gap-1.5 mb-1.5">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" class="text-blue-600 dark:text-blue-400" aria-hidden="true"><path d="M12 2l1.6 5.6L19 9l-5.4 1.4L12 16l-1.6-5.6L5 9l5.4-1.4L12 2z"/></svg>
+        <span class="text-[10px] font-extrabold text-blue-600 dark:text-blue-400 uppercase tracking-wider" id="insightLabel"></span>
+      </div>
+      <p id="quoteText" class="text-xs font-bold text-slate-900 dark:text-slate-100 italic leading-relaxed"></p>
     </div>
 
-    <h3 class="text-[11px] font-bold text-slate-400 dark:text-slate-500 tracking-wider uppercase mb-2" id="factorsHeading"></h3>
-    <div class="space-y-3 mb-4" id="factorsList"></div>
+    <h3 class="text-[11px] font-extrabold text-slate-400 dark:text-slate-500 tracking-wider uppercase mb-2.5" id="factorsHeading"></h3>
+    <div class="space-y-3 mb-5" id="factorsList"></div>
 
-    <p class="text-[11px] text-slate-400 dark:text-slate-500 italic mb-4" id="disclaimerText"></p>
+    <p class="text-[11px] text-slate-400 dark:text-slate-500 italic leading-relaxed mb-4" id="disclaimerText"></p>
 
-    <div class="flex gap-3 text-[10px] text-slate-400 dark:text-slate-500 mb-4" id="metaRow"></div>
+    <div class="flex flex-wrap gap-2 mb-4" id="metaRow"></div>
   </div>
 
   <!-- Chat section (always visible, below the credit flow) -->
   <div class="px-5 pb-5 pt-1 border-t border-slate-100 dark:border-slate-800">
-    <h2 class="text-[11px] font-bold text-slate-400 dark:text-slate-500 tracking-wider uppercase mb-2 mt-4" id="chatHeading"></h2>
-    <p class="text-xs text-slate-500 dark:text-slate-400 mb-3" id="chatHint"></p>
+    <h2 class="text-[11px] font-extrabold text-slate-400 dark:text-slate-500 tracking-wider uppercase mb-2 mt-4" id="chatHeading"></h2>
+    <p class="text-xs text-slate-500 dark:text-slate-400 mb-3 leading-relaxed" id="chatHint"></p>
     <div class="flex flex-col gap-3 mb-3 max-h-72 overflow-y-auto custom-scrollbar" id="thread"></div>
     <p id="hintText" hidden class="text-[11px] text-slate-400 dark:text-slate-500 mb-2"></p>
     <div class="flex flex-wrap gap-2 mb-3" id="chips"></div>
     <div class="flex gap-2 items-end">
-      <textarea id="input" rows="1" class="flex-1 resize-none border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 rounded-2xl px-3.5 py-2.5 text-sm max-h-28"></textarea>
-      <button id="sendBtn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-2xl px-4 py-2.5 text-xs flex-shrink-0"></button>
+      <textarea id="input" rows="1" class="flex-1 resize-none border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 rounded-2xl px-3.5 py-2.5 text-sm max-h-28 focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-400"></textarea>
+      <button id="sendBtn" class="bg-blue-600 hover:bg-blue-700 text-white font-extrabold rounded-2xl px-4 py-2.5 text-xs flex-shrink-0 shadow-sm shadow-blue-500/30"></button>
     </div>
   </div>
 
@@ -114,9 +135,9 @@
 
   const STRINGS = {
     en: {
-      tagline: 'Explainable credit & policy answers for India',
+      tagline: 'Explainable Credit Engine',
       statusChecking: 'checking…', statusLive: 'live', statusDown: "offline",
-      creditHeading: 'Get a credit assessment',
+      creditHeading: 'Get a credit assessment', personaCount: '3 profiles',
       creditHint: "Pick someone like you, or enter your own numbers. This calls FinBuddy's real, already-approved scoring system.",
       tabSimple: 'Simple View', tabAdvanced: 'Advanced Mode',
       fields: {
@@ -130,11 +151,12 @@
       scoreBtn: 'Run AI credit assessment', scoreBtnLoading: 'Checking…',
       creditFooter: 'Powered by FinBuddy AI · real UPI data signals',
       creditErr: (msg) => `Couldn't get a score: ${msg}`,
-      backLabel: 'Back', resultTitle: 'Credit Assessment', liveBadge: '● Live, not a demo',
+      backLabel: 'Back', resultTitle: 'Credit Assessment', liveBadge: 'Live',
       approved: 'APPROVED', notApproved: 'NOT APPROVED YET',
       primarySignalLabel: 'Primary signal', scoreLabel: 'Credit score',
       repayLine: (pct) => `${pct}% repayment confidence`,
       anomalyLine: (note) => `⚠ Unusual UPI pattern flagged${note ? ': ' + note : ''}`,
+      insightLabel: 'AI Coach Insight',
       factorsHeading: 'Why this decision',
       metaLatency: (ms) => `Scored in ${ms}ms`, metaFair: 'Fairness-checked (F-012)', metaPlain: 'Plain threshold',
       metaBand: (band) => `Income band: ${band}`,
@@ -162,9 +184,9 @@
       errNetwork: "I couldn't connect. The app may be waking up after resting — this can take about a minute the first time. Please try again.",
     },
     hi: {
-      tagline: 'भारत के लिए समझने-योग्य क्रेडिट और नीति जवाब',
+      tagline: 'समझने-योग्य क्रेडिट इंजन',
       statusChecking: 'देख रही हूं…', statusLive: 'लाइव', statusDown: 'ऑफ़लाइन',
-      creditHeading: 'क्रेडिट आकलन करवाएं',
+      creditHeading: 'क्रेडिट आकलन करवाएं', personaCount: '3 प्रोफ़ाइल',
       creditHint: 'अपने जैसा कोई चुनें, या अपने नंबर डालें। यह FinBuddy के असली, पहले से स्वीकृत स्कोरिंग सिस्टम को कॉल करता है।',
       tabSimple: 'सरल दृश्य', tabAdvanced: 'विस्तृत मोड',
       fields: {
@@ -178,11 +200,12 @@
       scoreBtn: 'AI क्रेडिट आकलन चलाएं', scoreBtnLoading: 'देख रही हूं…',
       creditFooter: 'FinBuddy AI द्वारा संचालित · असली UPI डेटा',
       creditErr: (msg) => `स्कोर नहीं मिल पाया: ${msg}`,
-      backLabel: 'वापस', resultTitle: 'क्रेडिट आकलन', liveBadge: '● लाइव, डेमो नहीं',
+      backLabel: 'वापस', resultTitle: 'क्रेडिट आकलन', liveBadge: 'लाइव',
       approved: 'स्वीकृत', notApproved: 'अभी स्वीकृत नहीं',
       primarySignalLabel: 'मुख्य संकेत', scoreLabel: 'क्रेडिट स्कोर',
       repayLine: (pct) => `${pct}% चुकाने का भरोसा`,
       anomalyLine: (note) => `⚠ असामान्य UPI पैटर्न मिला${note ? ': ' + note : ''}`,
+      insightLabel: 'AI कोच की राय',
       factorsHeading: 'यह निर्णय क्यों',
       metaLatency: (ms) => `${ms}ms में स्कोर मिला`, metaFair: 'निष्पक्षता-जांचा गया (F-012)', metaPlain: 'सामान्य सीमा',
       metaBand: (band) => `आय श्रेणी: ${band}`,
@@ -212,12 +235,13 @@
   };
 
   const PERSONAS = {
-    rajesh: { emoji: '🛺', avg_monthly_income: 20000, income_regularity_score: 0.82, tx_count_30d: 400, merchant_diversity: 12, balance_dip_frequency: 2, b2b_ratio: 0.15, avg_transaction_size: 50, tenure_months: 6, geography: 'urban' },
-    meena: { emoji: '🛒', avg_monthly_income: 37000, income_regularity_score: 0.91, tx_count_30d: 900, merchant_diversity: 28, balance_dip_frequency: 0, b2b_ratio: 0.65, avg_transaction_size: 210, tenure_months: 12, geography: 'urban' },
-    custom: { emoji: '✏️', avg_monthly_income: 15000, income_regularity_score: 0.5, tx_count_30d: 100, merchant_diversity: 8, balance_dip_frequency: 3, b2b_ratio: 0.1, avg_transaction_size: 150, tenure_months: 3, geography: 'semi_urban' },
+    rajesh: { emoji: '🛺', color: 'amber', avg_monthly_income: 20000, income_regularity_score: 0.82, tx_count_30d: 400, merchant_diversity: 12, balance_dip_frequency: 2, b2b_ratio: 0.15, avg_transaction_size: 50, tenure_months: 6, geography: 'urban' },
+    meena: { emoji: '🛒', color: 'emerald', avg_monthly_income: 37000, income_regularity_score: 0.91, tx_count_30d: 900, merchant_diversity: 28, balance_dip_frequency: 0, b2b_ratio: 0.65, avg_transaction_size: 210, tenure_months: 12, geography: 'urban' },
+    custom: { emoji: '✏️', color: 'indigo', avg_monthly_income: 15000, income_regularity_score: 0.5, tx_count_30d: 100, merchant_diversity: 8, balance_dip_frequency: 3, b2b_ratio: 0.1, avg_transaction_size: 150, tenure_months: 3, geography: 'semi_urban' },
   };
   const FIELD_ORDER = ['avg_monthly_income', 'income_regularity_score', 'tx_count_30d', 'merchant_diversity', 'balance_dip_frequency', 'b2b_ratio', 'avg_transaction_size', 'tenure_months'];
   const NUM_STEP = { income_regularity_score: '0.01', b2b_ratio: '0.01' };
+  const ICON_BG = { amber: 'bg-amber-100 dark:bg-amber-950/40', emerald: 'bg-emerald-100 dark:bg-emerald-950/40', indigo: 'bg-indigo-100 dark:bg-indigo-950/40' };
 
   let currentLang = 'en';
   const S = () => STRINGS[currentLang];
@@ -229,27 +253,25 @@
   let isLive = false;
 
   const el = (id) => document.getElementById(id);
-  const brandTagline = el('brandTagline'), statusDot = el('statusDot'), statusText = el('statusText'), langSwitch = el('langSwitch');
-  const creditHeading = el('creditHeading'), creditHint = el('creditHint'), personaRow = el('personaRow');
+  const brandTagline = el('brandTagline'), statusDot = el('statusDot'), statusText = el('statusText'), statusPill = el('statusPill'), langSwitch = el('langSwitch');
+  const creditHeading = el('creditHeading'), creditHint = el('creditHint'), personaRow = el('personaRow'), personaCount = el('personaCount');
   const tabSimple = el('tabSimple'), tabAdvanced = el('tabAdvanced'), simpleCard = el('simpleCard'), fieldGrid = el('fieldGrid');
   const scoreBtn = el('scoreBtn'), creditError = el('creditError'), creditFooter = el('creditFooter');
   const viewInput = el('view-input'), viewResult = el('view-result'), backBtn = el('backBtn'), backLabel = el('backLabel');
   const resultTitle = el('resultTitle'), liveBadge = el('liveBadge'), verdictBadge = el('verdictBadge');
-  const primarySignalLabel = el('primarySignalLabel'), primarySignalValue = el('primarySignalValue');
+  const primarySignalLabel = el('primarySignalLabel'), primarySignalValue = el('primarySignalValue'), fairnessTag = el('fairnessTag');
   const scoreLabel = el('scoreLabel'), scoreValue = el('scoreValue'), repayLine = el('repayLine'), anomalyRow = el('anomalyRow');
-  const quoteText = el('quoteText'), factorsHeading = el('factorsHeading'), factorsList = el('factorsList');
+  const insightLabel = el('insightLabel'), quoteText = el('quoteText'), factorsHeading = el('factorsHeading'), factorsList = el('factorsList');
   const disclaimerText = el('disclaimerText'), metaRow = el('metaRow');
   const chatHeading = el('chatHeading'), chatHint = el('chatHint'), thread = el('thread'), hintText = el('hintText');
   const chipsEl = el('chips'), input = el('input'), sendBtn = el('sendBtn');
 
   function escapeHtml(s) { const d = document.createElement('div'); d.textContent = s ?? ''; return d.innerHTML; }
 
-  const ACTIVE_LANG = 'py-2 rounded-xl border transition-all border-blue-600 bg-blue-600 text-white';
-  const INACTIVE_LANG = 'py-2 rounded-xl border transition-all border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:border-slate-300';
-  const ACTIVE_TAB = 'mode-tab flex-1 py-1.5 rounded-lg transition-all bg-white dark:bg-slate-700 shadow-sm text-blue-600 dark:text-blue-400';
-  const INACTIVE_TAB = 'mode-tab flex-1 py-1.5 rounded-lg transition-all text-slate-600 dark:text-slate-400';
-  const ACTIVE_PERSONA = 'p-3 rounded-2xl border-2 border-blue-600 bg-blue-50/60 dark:bg-blue-950/30 flex flex-col items-center text-center transition-all';
-  const INACTIVE_PERSONA = 'p-3 rounded-2xl border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 flex flex-col items-center text-center transition-all hover:border-slate-300';
+  const ACTIVE_LANG = 'py-2 rounded-xl border transition-all border-blue-600 bg-blue-600 text-white shadow-sm shadow-blue-500/30';
+  const INACTIVE_LANG = 'py-2 rounded-xl border transition-all border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:border-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800';
+  const ACTIVE_TAB = 'mode-tab flex-1 py-2 rounded-xl transition-all duration-200 bg-white dark:bg-slate-700 shadow-sm text-blue-600 dark:text-blue-400';
+  const INACTIVE_TAB = 'mode-tab flex-1 py-2 rounded-xl transition-all duration-200 text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200';
 
   function applyStrings() {
     const s = S();
@@ -259,25 +281,27 @@
       b.className = 'lang-btn ' + (b.dataset.lang === currentLang ? ACTIVE_LANG : INACTIVE_LANG);
     });
     creditHeading.textContent = s.creditHeading;
+    personaCount.textContent = s.personaCount;
     creditHint.textContent = s.creditHint;
     tabSimple.textContent = s.tabSimple;
     tabAdvanced.textContent = s.tabAdvanced;
     tabSimple.className = mode === 'simple' ? ACTIVE_TAB : INACTIVE_TAB;
     tabAdvanced.className = mode === 'advanced' ? ACTIVE_TAB : INACTIVE_TAB;
-    scoreBtn.textContent = scoreBtn.dataset.loading ? s.scoreBtnLoading : s.scoreBtn;
+    scoreBtn.innerHTML = (scoreBtn.dataset.loading ? s.scoreBtnLoading : s.scoreBtn) + (scoreBtn.dataset.loading ? '' : ' <span aria-hidden="true">&rarr;</span>');
     creditFooter.textContent = s.creditFooter;
     backLabel.textContent = s.backLabel;
     resultTitle.textContent = s.resultTitle;
-    liveBadge.textContent = s.liveBadge;
+    liveBadge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-white/90 animate-pulse motion-reduce:animate-none"></span> ${escapeHtml(s.liveBadge)}`;
     primarySignalLabel.textContent = s.primarySignalLabel;
     scoreLabel.textContent = s.scoreLabel;
+    insightLabel.textContent = s.insightLabel;
     factorsHeading.textContent = s.factorsHeading;
     chatHeading.textContent = s.chatHeading;
     chatHint.textContent = s.chatHint;
     input.placeholder = s.placeholder;
     sendBtn.textContent = s.send;
     if (currentLang === 'en') { hintText.hidden = true; } else { hintText.hidden = false; hintText.textContent = s.hintOtherLang; }
-    chipsEl.innerHTML = s.chips.map((c, i) => `<button class="chip bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 text-xs px-3 py-2 rounded-full hover:border-blue-400" data-idx="${i}">${escapeHtml(c.label)}</button>`).join('');
+    chipsEl.innerHTML = s.chips.map((c, i) => `<button class="chip bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 text-xs font-medium px-3 py-2 rounded-full hover:border-blue-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors" data-idx="${i}">${escapeHtml(c.label)}</button>`).join('');
     renderPersonaRow();
     renderSimpleCard();
     renderFieldGrid();
@@ -287,10 +311,15 @@
     const s = S();
     personaRow.innerHTML = Object.keys(PERSONAS).map((key) => {
       const p = PERSONAS[key], label = s.personas[key];
-      return `<button class="persona-card ${key === selectedPersona ? ACTIVE_PERSONA : INACTIVE_PERSONA}" data-persona="${key}" type="button">
-        <div class="w-10 h-10 mb-1 flex items-center justify-center text-2xl">${p.emoji}</div>
-        <span class="text-sm font-bold text-slate-800 dark:text-slate-100 leading-tight">${escapeHtml(label.name)}</span>
-        <span class="text-[10px] text-slate-500 dark:text-slate-400 leading-tight mt-0.5">${escapeHtml(label.sub)}</span>
+      const active = key === selectedPersona;
+      const base = 'persona-card p-3 rounded-2xl border-2 flex flex-col items-center text-center transition-all duration-200 group';
+      const cls = active
+        ? base + ' border-blue-600 bg-gradient-to-br from-blue-50 to-white dark:from-blue-950/40 dark:to-slate-800 shadow-md shadow-blue-500/10'
+        : base + ' border-slate-100 dark:border-slate-700 bg-slate-50/60 dark:bg-slate-800/40 hover:border-slate-300';
+      return `<button class="${cls}" data-persona="${key}" type="button">
+        <div class="w-10 h-10 mb-1.5 rounded-2xl ${ICON_BG[p.color]} flex items-center justify-center text-xl group-hover:scale-110 transition-transform">${p.emoji}</div>
+        <span class="text-xs font-bold text-slate-800 dark:text-slate-100 leading-tight">${escapeHtml(label.name)}</span>
+        <span class="text-[9px] text-slate-500 dark:text-slate-400 font-medium leading-tight mt-0.5">${escapeHtml(label.sub)}</span>
       </button>`;
     }).join('');
   }
@@ -298,29 +327,30 @@
   function renderSimpleCard() {
     const s = S();
     const p = PERSONAS[selectedPersona], label = s.personas[selectedPersona];
+    const stat = (l, v, color) => `<div class="bg-white dark:bg-slate-900 p-2.5 rounded-xl border border-slate-100 dark:border-slate-700"><span class="text-slate-400 dark:text-slate-500 block text-[9px] font-bold uppercase tracking-wide">${l}</span><span class="font-extrabold ${color} text-sm block mt-0.5">${v}</span></div>`;
     simpleCard.innerHTML = `
-      <div class="flex items-center gap-3 mb-3">
-        <div class="text-3xl">${p.emoji}</div>
-        <div><h3 class="font-bold text-slate-800 dark:text-slate-100 text-base">${escapeHtml(label.name)}</h3><p class="text-xs text-slate-500 dark:text-slate-400">${escapeHtml(label.sub)}</p></div>
+      <div class="flex items-center gap-3 mb-3.5 pb-3 border-b border-slate-100 dark:border-slate-700">
+        <div class="w-10 h-10 rounded-xl ${ICON_BG[p.color]} flex items-center justify-center text-xl">${p.emoji}</div>
+        <div><h3 class="font-extrabold text-slate-900 dark:text-slate-100 text-sm">${escapeHtml(label.name)}</h3><p class="text-[11px] text-slate-500 dark:text-slate-400 font-medium">${escapeHtml(label.sub)}</p></div>
       </div>
-      <div class="grid grid-cols-2 gap-3 text-xs">
-        <div class="bg-white dark:bg-slate-900 p-2.5 rounded-xl border border-slate-100 dark:border-slate-700"><span class="text-slate-400 dark:text-slate-500 block text-[11px]">${s.simpleLabels.income}</span><span class="font-bold text-emerald-600 dark:text-emerald-400 text-sm">₹${formValues.avg_monthly_income.toLocaleString()}</span></div>
-        <div class="bg-white dark:bg-slate-900 p-2.5 rounded-xl border border-slate-100 dark:border-slate-700"><span class="text-slate-400 dark:text-slate-500 block text-[11px]">${s.simpleLabels.upi}</span><span class="font-bold text-slate-700 dark:text-slate-200 text-sm">${formValues.tx_count_30d}</span></div>
-        <div class="bg-white dark:bg-slate-900 p-2.5 rounded-xl border border-slate-100 dark:border-slate-700"><span class="text-slate-400 dark:text-slate-500 block text-[11px]">${s.simpleLabels.tenure}</span><span class="font-bold text-slate-700 dark:text-slate-200 text-sm">${formValues.tenure_months}</span></div>
-        <div class="bg-white dark:bg-slate-900 p-2.5 rounded-xl border border-slate-100 dark:border-slate-700"><span class="text-slate-400 dark:text-slate-500 block text-[11px]">${s.simpleLabels.geo}</span><span class="font-bold text-slate-700 dark:text-slate-200 text-sm">${s.geographyOptions[formValues.geography]}</span></div>
+      <div class="grid grid-cols-2 gap-2.5">
+        ${stat(s.simpleLabels.income, '₹' + formValues.avg_monthly_income.toLocaleString(), 'text-emerald-600 dark:text-emerald-400')}
+        ${stat(s.simpleLabels.upi, formValues.tx_count_30d, 'text-slate-700 dark:text-slate-200')}
+        ${stat(s.simpleLabels.tenure, formValues.tenure_months, 'text-slate-700 dark:text-slate-200')}
+        ${stat(s.simpleLabels.geo, s.geographyOptions[formValues.geography], 'text-slate-700 dark:text-slate-200')}
       </div>`;
   }
 
   function renderFieldGrid() {
     const s = S();
     const rows = FIELD_ORDER.map((key) => `
-      <div><label class="block text-slate-400 dark:text-slate-500 mb-1">${escapeHtml(s.fields[key])}</label>
-      <input type="number" data-field="${key}" value="${formValues[key]}" step="${NUM_STEP[key] || '1'}" min="0" class="w-full bg-slate-800 dark:bg-slate-900 border border-slate-700 rounded-lg p-2 text-white text-xs"></div>
+      <div><label class="block text-slate-400 dark:text-slate-500 text-[9px] font-bold uppercase tracking-wide mb-1">${escapeHtml(s.fields[key])}</label>
+      <input type="number" data-field="${key}" value="${formValues[key]}" step="${NUM_STEP[key] || '1'}" min="0" class="w-full bg-slate-800 dark:bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-white text-xs font-semibold focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"></div>
     `).join('');
     const geoOptions = Object.keys(s.geographyOptions).map((k) => `<option value="${k}" ${formValues.geography === k ? 'selected' : ''}>${escapeHtml(s.geographyOptions[k])}</option>`).join('');
     fieldGrid.innerHTML = `<div class="grid grid-cols-2 gap-3">${rows}</div>
-      <div><label class="block text-slate-400 dark:text-slate-500 mb-1">${escapeHtml(s.fields.geography)}</label>
-      <select data-field="geography" class="w-full bg-slate-800 dark:bg-slate-900 border border-slate-700 rounded-lg p-2 text-white text-xs">${geoOptions}</select></div>`;
+      <div><label class="block text-slate-400 dark:text-slate-500 text-[9px] font-bold uppercase tracking-wide mb-1">${escapeHtml(s.fields.geography)}</label>
+      <select data-field="geography" class="w-full bg-slate-800 dark:bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-white text-xs font-semibold focus:outline-none focus:border-blue-500">${geoOptions}</select></div>`;
   }
 
   function setMode(m) {
@@ -372,12 +402,15 @@
     const c = data.credit_assessment;
     if (!c) return;
 
-    verdictBadge.textContent = c.approved ? '✓ ' + s.approved : '✕ ' + s.notApproved;
-    verdictBadge.className = 'text-xs font-black tracking-widest px-4 py-1.5 rounded-full uppercase shadow-sm flex items-center gap-1.5 border ' +
-      (c.approved ? 'bg-emerald-100 dark:bg-emerald-950/50 text-emerald-800 dark:text-emerald-400 border-emerald-300 dark:border-emerald-800' : 'bg-rose-100 dark:bg-rose-950/50 text-rose-800 dark:text-rose-400 border-rose-300 dark:border-rose-800');
+    verdictBadge.innerHTML = (c.approved ? '✓ ' : '✕ ') + escapeHtml(c.approved ? s.approved : s.notApproved);
+    verdictBadge.className = 'text-xs font-black tracking-widest px-5 py-2 rounded-full uppercase shadow-sm flex items-center gap-2 border ' +
+      (c.approved
+        ? 'bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-950/50 dark:to-teal-950/40 text-emerald-800 dark:text-emerald-400 border-emerald-300 dark:border-emerald-800'
+        : 'bg-gradient-to-r from-rose-50 to-orange-50 dark:from-rose-950/50 dark:to-orange-950/40 text-rose-800 dark:text-rose-400 border-rose-300 dark:border-rose-800');
 
     const primary = c.top_3_factors[0];
     primarySignalValue.textContent = primary ? factorDisplayName(primary.factor) : '—';
+    fairnessTag.textContent = c.fairness_mitigation_applied ? s.metaFair : s.metaPlain;
     scoreValue.textContent = c.credit_score;
     repayLine.textContent = s.repayLine(Math.round(c.calibrated_probability_of_repayment * 100));
 
@@ -391,19 +424,21 @@
     factorsList.innerHTML = c.top_3_factors.map((f) => {
       const pos = f.direction === 'positive';
       const pct = Math.min(100, Math.abs(f.shap_contribution) * 40);
-      return `<div class="bg-white dark:bg-slate-800 rounded-xl p-3 border border-slate-100 dark:border-slate-700 shadow-sm">
-        <div class="flex justify-between items-center mb-1 text-xs">
+      const barGrad = pos ? 'from-emerald-400 to-emerald-500' : 'from-rose-400 to-rose-500';
+      return `<div class="bg-white dark:bg-slate-800 rounded-2xl p-3.5 border border-slate-100 dark:border-slate-700 card-shadow">
+        <div class="flex justify-between items-center mb-1.5 text-xs">
           <span class="font-bold text-slate-800 dark:text-slate-100">${escapeHtml(factorDisplayName(f.factor))}</span>
-          <span class="font-bold ${pos ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40' : 'text-rose-500 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/40'} px-1.5 py-0.5 rounded text-[11px]">${pos ? '+' : ''}${f.shap_contribution.toFixed(2)}</span>
+          <span class="font-extrabold ${pos ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40' : 'text-rose-500 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/40'} px-2 py-0.5 rounded-md text-[11px]">${pos ? '+' : ''}${f.shap_contribution.toFixed(2)}</span>
         </div>
-        <div class="w-full bg-slate-100 dark:bg-slate-700 h-2 rounded-full overflow-hidden mb-2"><div class="${pos ? 'bg-emerald-500' : 'bg-rose-500'} h-full rounded-full" style="width:${pct}%"></div></div>
-        <p class="text-[11px] text-slate-500 dark:text-slate-400 mb-1">${escapeHtml(f.plain_english)}</p>
-        <div class="flex items-center gap-1 text-[11px] ${pos ? 'text-blue-600 dark:text-blue-400' : 'text-amber-600 dark:text-amber-400'} font-semibold"><span aria-hidden="true">&#9889;</span> ${escapeHtml(f.action)}</div>
+        <div class="w-full bg-slate-100 dark:bg-slate-700 h-2 rounded-full overflow-hidden mb-2"><div class="bg-gradient-to-r ${barGrad} h-full rounded-full transition-all duration-500" style="width:${pct}%"></div></div>
+        <p class="text-[11px] text-slate-500 dark:text-slate-400 mb-1.5 font-medium">${escapeHtml(f.plain_english)}</p>
+        <div class="flex items-center gap-1.5 text-[11px] ${pos ? 'text-blue-600 dark:text-blue-400' : 'text-amber-600 dark:text-amber-400'} font-bold"><span aria-hidden="true">&#9889;</span> ${escapeHtml(f.action)}</div>
       </div>`;
     }).join('');
 
     disclaimerText.textContent = data.disclaimer || '';
-    metaRow.innerHTML = `<span>${s.metaLatency(Math.round(c.latency_ms))}</span><span>${c.fairness_mitigation_applied ? s.metaFair : s.metaPlain}</span><span>${s.metaBand(c.income_band)}</span>`;
+    const chip = (t) => `<span class="text-[10px] font-semibold text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 px-2.5 py-1 rounded-full">${escapeHtml(t)}</span>`;
+    metaRow.innerHTML = chip(s.metaLatency(Math.round(c.latency_ms))) + chip(c.fairness_mitigation_applied ? s.metaFair : s.metaPlain) + chip(s.metaBand(c.income_band));
 
     showResultView();
   }
@@ -429,7 +464,7 @@
     } finally {
       scoreBtn.disabled = false;
       delete scoreBtn.dataset.loading;
-      scoreBtn.textContent = S().scoreBtn;
+      applyStrings();
     }
   }
   scoreBtn.addEventListener('click', runCreditAssessment);
@@ -438,11 +473,11 @@
     try {
       const r = await fetch(API_BASE + '/health', { method: 'GET' });
       isLive = r.ok;
-      statusDot.className = 'w-1.5 h-1.5 rounded-full ' + (r.ok ? 'bg-emerald-500' : 'bg-rose-500');
+      statusDot.className = 'w-1.5 h-1.5 rounded-full animate-pulse motion-reduce:animate-none ' + (r.ok ? 'bg-emerald-500' : 'bg-rose-500');
       if (!r.ok) statusDot.dataset.bad = '1';
     } catch (e) {
       isLive = false;
-      statusDot.className = 'w-1.5 h-1.5 rounded-full bg-rose-500';
+      statusDot.className = 'w-1.5 h-1.5 rounded-full animate-pulse motion-reduce:animate-none bg-rose-500';
       statusDot.dataset.bad = '1';
     }
     applyStrings();
@@ -451,7 +486,7 @@
   function addUserTurn(text) {
     const wrap = document.createElement('div');
     wrap.className = 'flex justify-end';
-    wrap.innerHTML = `<div class="max-w-[85%] bg-blue-600 text-white text-sm rounded-2xl rounded-br-sm px-3.5 py-2.5">${escapeHtml(text)}</div>`;
+    wrap.innerHTML = `<div class="max-w-[85%] bg-blue-600 text-white text-sm rounded-2xl rounded-br-md px-3.5 py-2.5 shadow-sm shadow-blue-500/20">${escapeHtml(text)}</div>`;
     thread.appendChild(wrap);
     thread.scrollTop = thread.scrollHeight;
   }
@@ -459,7 +494,7 @@
   function addThinkingTurn() {
     const wrap = document.createElement('div');
     wrap.className = 'flex justify-start';
-    wrap.innerHTML = `<div class="bg-slate-100 dark:bg-slate-800 rounded-2xl rounded-bl-sm px-4 py-3 flex gap-1"><span class="w-1.5 h-1.5 rounded-full bg-slate-400 animate-bounce"></span><span class="w-1.5 h-1.5 rounded-full bg-slate-400 animate-bounce" style="animation-delay:0.15s"></span><span class="w-1.5 h-1.5 rounded-full bg-slate-400 animate-bounce" style="animation-delay:0.3s"></span></div>`;
+    wrap.innerHTML = `<div class="bg-slate-100 dark:bg-slate-800 rounded-2xl rounded-bl-md px-4 py-3 flex gap-1"><span class="w-1.5 h-1.5 rounded-full bg-slate-400 animate-bounce motion-reduce:animate-none"></span><span class="w-1.5 h-1.5 rounded-full bg-slate-400 animate-bounce motion-reduce:animate-none [animation-delay:150ms]"></span><span class="w-1.5 h-1.5 rounded-full bg-slate-400 animate-bounce motion-reduce:animate-none [animation-delay:300ms]"></span></div>`;
     thread.appendChild(wrap);
     thread.scrollTop = thread.scrollHeight;
     return wrap;
@@ -490,12 +525,12 @@
     const disclaimer = data.disclaimer ? `<div class="text-[11px] italic text-slate-400 mt-1.5">${escapeHtml(data.disclaimer)}</div>` : '';
     const traceId = 'trace-' + (traceSeq++);
     wrap.innerHTML = `
-      <div class="max-w-[90%] ${data.escalate_to_human ? 'bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-900' : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700'} border text-sm text-slate-800 dark:text-slate-100 rounded-2xl rounded-bl-sm px-3.5 py-2.5">
+      <div class="max-w-[90%] ${data.escalate_to_human ? 'bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-900' : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700'} border text-sm text-slate-800 dark:text-slate-100 rounded-2xl rounded-bl-md px-3.5 py-2.5 card-shadow">
         ${escapeHtml(data.answer)}
         ${cites ? `<div class="flex flex-wrap gap-1.5 mt-2 pt-2 border-t border-dashed border-slate-200 dark:border-slate-600">${cites}</div>` : ''}
         ${disclaimer}
       </div>
-      <button class="trace-toggle text-[11px] text-slate-400 hover:text-slate-600 underline decoration-dotted" data-target="${traceId}" type="button">${S().traceShow}</button>
+      <button class="trace-toggle text-[11px] text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 underline decoration-dotted" data-target="${traceId}" type="button">${S().traceShow}</button>
       <div class="trace-card hidden bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl p-3 w-full" id="${traceId}">${buildTraceCard(data)}</div>
     `;
     thread.appendChild(wrap);
@@ -505,7 +540,7 @@
   function addErrorTurn(message) {
     const wrap = document.createElement('div');
     wrap.className = 'flex justify-start';
-    wrap.innerHTML = `<div class="max-w-[85%] bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 text-sm text-slate-800 dark:text-slate-100 rounded-2xl rounded-bl-sm px-3.5 py-2.5">${escapeHtml(message)}</div>`;
+    wrap.innerHTML = `<div class="max-w-[85%] bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 text-sm text-slate-800 dark:text-slate-100 rounded-2xl rounded-bl-md px-3.5 py-2.5">${escapeHtml(message)}</div>`;
     thread.appendChild(wrap);
     thread.scrollTop = thread.scrollHeight;
   }
@@ -522,7 +557,7 @@
     thread.innerHTML = '';
     const wrap = document.createElement('div');
     wrap.className = 'flex justify-start';
-    wrap.innerHTML = `<div class="max-w-[90%] bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm text-slate-800 dark:text-slate-100 rounded-2xl rounded-bl-sm px-3.5 py-2.5">${escapeHtml(S().greeting)}</div>`;
+    wrap.innerHTML = `<div class="max-w-[90%] bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm text-slate-800 dark:text-slate-100 rounded-2xl rounded-bl-md px-3.5 py-2.5 card-shadow">${escapeHtml(S().greeting)}</div>`;
     thread.appendChild(wrap);
   }
 
@@ -541,12 +576,12 @@
       if (!res.ok) { addErrorTurn(S().errHttp(res.status)); return; }
       const data = await res.json();
       addAssistantTurn(data);
-      isLive = true; statusDot.className = 'w-1.5 h-1.5 rounded-full bg-emerald-500'; delete statusDot.dataset.bad;
+      isLive = true; statusDot.className = 'w-1.5 h-1.5 rounded-full animate-pulse motion-reduce:animate-none bg-emerald-500'; delete statusDot.dataset.bad;
       statusText.textContent = S().statusLive;
     } catch (e) {
       thinkingEl.remove();
       addErrorTurn(S().errNetwork);
-      isLive = false; statusDot.className = 'w-1.5 h-1.5 rounded-full bg-rose-500'; statusDot.dataset.bad = '1';
+      isLive = false; statusDot.className = 'w-1.5 h-1.5 rounded-full animate-pulse motion-reduce:animate-none bg-rose-500'; statusDot.dataset.bad = '1';
       statusText.textContent = S().statusDown;
     } finally {
       sendBtn.disabled = false; input.focus();
