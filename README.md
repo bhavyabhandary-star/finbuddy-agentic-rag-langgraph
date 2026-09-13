@@ -27,6 +27,9 @@ scoring API + Risk-Trend model for inference — built with LangChain + LangGrap
    agent orchestrates (each mapped to its real production purpose, not repurposed),
    the MLOps this project actually owns, and the milestone checklist this scaffold
    follows.
+3. [`docs/langgraph_state_machine.md`](docs/langgraph_state_machine.md) — the
+   state machine's actual nodes/edges, as a Mermaid diagram generated directly
+   from the compiled graph (not hand-drawn).
 
 This is a **separate project** from `finbuddy-project` (the production FinBuddy
 build). It never modifies that repo — it consumes its live scoring API and one
