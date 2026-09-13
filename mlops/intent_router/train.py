@@ -40,7 +40,14 @@ def _build_pipeline(**logreg_kwargs) -> Pipeline:
     return Pipeline(
         [
             ("tfidf", TfidfVectorizer(min_df=1, ngram_range=(1, 2))),
-            ("clf", LogisticRegression(max_iter=1000, **logreg_kwargs)),
+            # random_state pins solver="saga"'s own internal stochasticity --
+            # verified necessary, not theoretical: without it, three fresh
+            # retrains on the *same* data.py picked two different winning
+            # configs (ridge_l2_split_50_50 vs _80_20), each landing on a
+            # different point right at the eval gate's accuracy boundary.
+            # train_test_split's random_state=42 alone doesn't cover this;
+            # saga has its own randomness independent of the data split.
+            ("clf", LogisticRegression(max_iter=1000, random_state=42, **logreg_kwargs)),
         ]
     )
 
