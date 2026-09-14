@@ -52,7 +52,9 @@ ingestion/      PDF ingestion (Docling) → chunking → Chroma vector store;
                 Setu AA Feed (real sandbox UPI data → 8 signals)
 eval/           scenario harness + RAGAS metrics; CI gate
 tests/          pytest suite
-docs/           additional design notes as the project grows
+ui/             finbuddy_console.html -- persona-based credit-assessment +
+                policy Q&A console, deployed via GitHub Pages (see Deployment)
+docs/           additional design notes, the LangGraph diagram, demo checklist
 ```
 
 ## Status
@@ -93,6 +95,42 @@ and `eval/ragas_eval.py --production` — which calls the deployed Space's real
 (faithfulness 1.00, context precision 0.97, context recall 1.00; all three
 answers correct, including the previously-wrong DPDP consent question). Full
 before/after/production detail in `docs/ragas_eval_results.json`.
+
+The console UI (`ui/finbuddy_console.html`) is also real, not a static
+mockup: persona-based credit assessment (Simple/Advanced modes, editable UPI
+signals), real SHAP-explained factor cards, an honest per-factor eligibility
+roadmap (each step reuses the scoring tool's own real `action` tip — no
+fabricated loan amounts or unlock timelines), and a policy-Q&A chat with a
+trace panel showing the real route/grounding/citations behind each answer.
+Deployed via GitHub Pages at
+[bhavyabhandary-star.github.io/finbuddy-agentic-rag-langgraph/finbuddy_console.html](https://bhavyabhandary-star.github.io/finbuddy-agentic-rag-langgraph/finbuddy_console.html)
+(auto-deploys on any push touching `ui/**`, see `.github/workflows/deploy-pages.yml`).
+Note: the console cannot run inside a claude.ai Artifact preview — Artifacts'
+CSP blocks `fetch()` to any host outside a small CDN allowlist, so
+`/agent/run` calls there always fail with `Failed to fetch`; GitHub Pages has
+no such restriction and is what the live link above actually uses.
+
+CI's own `Evaluation gate (routing accuracy)` step had a real, previously
+undiscovered bug, not a hypothetical one: `mlops/intent_router/registry_store/`
+(the trained Intent Router's model) is deliberately gitignored — a real,
+already signed-off model lives there on a developer's machine and gets
+bundled into the HF Space deploy snapshot separately — so it never existed
+in a fresh CI checkout. `classify_intent()` silently fell back to a crude
+6-keyword heuristic instead, which always returns `confidence=0.5` and
+happened to sit exactly at the eval gate's 75% pass floor by coincidence —
+every CI log ever produced showed that flat 0.5 on all four scenarios,
+confirmed by reproducing the identical behavior locally (moving
+`registry_store/` aside reproduces CI's exact output). This meant the gate
+could never have caught a real model regression. Fixed by having CI train
+and promote a real model into that job's own disposable filesystem before
+the gate runs (`mlops/intent_router/train_and_promote.py`) — this is
+deliberately *not* a real production promotion, which still requires
+genuine human sign-off per `registry.py`'s governance gate; it's discarded
+when the runner ends. Also pinned `LogisticRegression`'s own `random_state`
+(the `saga` solver has randomness independent of the train/test split's own
+seed), since training wasn't fully reproducible run to run before that. The
+gate now genuinely scores a real model: 100% routing accuracy with real,
+varied confidence values, verified stable across repeated CI runs.
 
 ## Language support
 
@@ -178,5 +216,16 @@ python -m eval.evaluate_agent --gate
 
 ## Deployment
 
-HuggingFace Spaces — a **new, separate Space** from the existing production FinBuddy
-Spaces. See `Dockerfile`.
+Two independent deployment targets:
+
+- **Backend API** — HuggingFace Spaces, a **new, separate Space** from the
+  existing production FinBuddy Spaces. See `Dockerfile` and
+  `scripts/prepare_hf_space_deploy.sh`, which builds a single-commit snapshot
+  including the gitignored real artifacts the dev repo doesn't track
+  (the trained Intent Router model, `chroma_data/`, the Risk-Trend artifact,
+  the Setu profile) — it never touches your HF credentials, so the printed
+  `git push` command is yours to run.
+- **Console UI** — GitHub Pages, auto-deployed by
+  `.github/workflows/deploy-pages.yml` on any push touching `ui/**`. See the
+  Status section above for why this is a separate deployment target from the
+  HF Space rather than the same static file being embedded there.
