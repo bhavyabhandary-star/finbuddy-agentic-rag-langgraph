@@ -98,7 +98,7 @@
       <div id="anomalyRow" hidden class="mt-3 bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-400 text-[11px] font-semibold px-2.5 py-1.5 rounded-lg border border-amber-200 dark:border-amber-900"></div>
     </div>
 
-    <div class="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/20 border-l-4 border-blue-600 p-3.5 rounded-r-2xl mb-5">
+    <div class="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-[#0e172a] dark:to-[#0a1020] border-l-4 border-blue-600 dark:border dark:border-l-4 dark:border-[#1e2e4a] dark:border-l-blue-600 p-3.5 rounded-r-2xl dark:rounded-2xl mb-5">
       <div class="flex items-center gap-1.5 mb-1.5">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" class="text-blue-600 dark:text-blue-400" aria-hidden="true"><path d="M12 2l1.6 5.6L19 9l-5.4 1.4L12 16l-1.6-5.6L5 9l5.4-1.4L12 2z"/></svg>
         <span class="text-[10px] font-extrabold text-blue-600 dark:text-blue-400 uppercase tracking-wider" id="insightLabel"></span>
@@ -108,6 +108,9 @@
 
     <h3 class="text-[11px] font-extrabold text-slate-400 dark:text-slate-500 tracking-wider uppercase mb-2.5" id="factorsHeading"></h3>
     <div class="space-y-3 mb-5" id="factorsList"></div>
+
+    <h3 class="text-[11px] font-extrabold text-slate-400 dark:text-slate-500 tracking-wider uppercase mb-2.5" id="roadmapHeading"></h3>
+    <div class="bg-white dark:bg-[#0d1527] rounded-2xl p-4 border border-slate-100 dark:border-slate-800 card-shadow mb-5 space-y-3.5" id="roadmapList"></div>
 
     <p class="text-[11px] text-slate-400 dark:text-slate-500 italic leading-relaxed mb-4" id="disclaimerText"></p>
 
@@ -158,6 +161,7 @@
       anomalyLine: (note) => `⚠ Unusual UPI pattern flagged${note ? ': ' + note : ''}`,
       insightLabel: 'AI Coach Insight',
       factorsHeading: 'Why this decision',
+      roadmapHeading: 'Your eligibility roadmap',
       metaLatency: (ms) => `Scored in ${ms}ms`, metaFair: 'Fairness-checked (F-012)', metaPlain: 'Plain threshold',
       metaBand: (band) => `Income band: ${band}`,
       personas: {
@@ -207,6 +211,7 @@
       anomalyLine: (note) => `⚠ असामान्य UPI पैटर्न मिला${note ? ': ' + note : ''}`,
       insightLabel: 'AI कोच की राय',
       factorsHeading: 'यह निर्णय क्यों',
+      roadmapHeading: 'आपका पात्रता रोडमैप',
       metaLatency: (ms) => `${ms}ms में स्कोर मिला`, metaFair: 'निष्पक्षता-जांचा गया (F-012)', metaPlain: 'सामान्य सीमा',
       metaBand: (band) => `आय श्रेणी: ${band}`,
       personas: {
@@ -262,6 +267,7 @@
   const primarySignalLabel = el('primarySignalLabel'), primarySignalValue = el('primarySignalValue'), fairnessTag = el('fairnessTag');
   const scoreLabel = el('scoreLabel'), scoreValue = el('scoreValue'), repayLine = el('repayLine'), anomalyRow = el('anomalyRow');
   const insightLabel = el('insightLabel'), quoteText = el('quoteText'), factorsHeading = el('factorsHeading'), factorsList = el('factorsList');
+  const roadmapHeading = el('roadmapHeading'), roadmapList = el('roadmapList');
   const disclaimerText = el('disclaimerText'), metaRow = el('metaRow');
   const chatHeading = el('chatHeading'), chatHint = el('chatHint'), thread = el('thread'), hintText = el('hintText');
   const chipsEl = el('chips'), input = el('input'), sendBtn = el('sendBtn');
@@ -296,6 +302,7 @@
     scoreLabel.textContent = s.scoreLabel;
     insightLabel.textContent = s.insightLabel;
     factorsHeading.textContent = s.factorsHeading;
+    roadmapHeading.textContent = s.roadmapHeading;
     chatHeading.textContent = s.chatHeading;
     chatHint.textContent = s.chatHint;
     input.placeholder = s.placeholder;
@@ -425,7 +432,7 @@
       const pos = f.direction === 'positive';
       const pct = Math.min(100, Math.abs(f.shap_contribution) * 40);
       const barGrad = pos ? 'from-emerald-400 to-emerald-500' : 'from-rose-400 to-rose-500';
-      return `<div class="bg-white dark:bg-slate-800 rounded-2xl p-3.5 border border-slate-100 dark:border-slate-700 card-shadow">
+      return `<div class="bg-white dark:bg-[#0f192e] rounded-2xl p-3.5 border border-slate-100 dark:border-[#1e2d4a] card-shadow">
         <div class="flex justify-between items-center mb-1.5 text-xs">
           <span class="font-bold text-slate-800 dark:text-slate-100">${escapeHtml(factorDisplayName(f.factor))}</span>
           <span class="font-extrabold ${pos ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40' : 'text-rose-500 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/40'} px-2 py-0.5 rounded-md text-[11px]">${pos ? '+' : ''}${f.shap_contribution.toFixed(2)}</span>
@@ -435,6 +442,21 @@
         <div class="flex items-center gap-1.5 text-[11px] ${pos ? 'text-blue-600 dark:text-blue-400' : 'text-amber-600 dark:text-amber-400'} font-bold"><span aria-hidden="true">&#9889;</span> ${escapeHtml(f.action)}</div>
       </div>`;
     }).join('');
+
+    // Real, not invented: each step is the same tool's own `action` tip for
+    // that factor (already fetched above), just reframed as a numbered next
+    // step instead of a bolt-icon line -- no rupee amounts or timelines are
+    // fabricated here, unlike an earlier reference prototype's fixed
+    // "unlocks Rs X in Y days" roadmap.
+    roadmapList.innerHTML = c.top_3_factors.map((f, i) => `
+      <div class="flex items-start gap-3">
+        <div class="w-6 h-6 rounded-full bg-blue-600 text-white font-extrabold text-[11px] flex items-center justify-center flex-shrink-0 mt-0.5 shadow-sm shadow-blue-500/30">${i + 1}</div>
+        <div>
+          <h4 class="text-xs font-bold text-slate-800 dark:text-slate-100">${escapeHtml(factorDisplayName(f.factor))}</h4>
+          <p class="text-[11px] text-slate-500 dark:text-slate-400 font-medium leading-relaxed mt-0.5">${escapeHtml(f.action)}</p>
+        </div>
+      </div>
+    `).join('');
 
     disclaimerText.textContent = data.disclaimer || '';
     const chip = (t) => `<span class="text-[10px] font-semibold text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 px-2.5 py-1 rounded-full">${escapeHtml(t)}</span>`;
