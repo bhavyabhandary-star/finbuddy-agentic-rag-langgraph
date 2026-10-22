@@ -7,22 +7,14 @@ loads the registered Risk-Trend artifact read-only and runs inference locally.
 """
 from __future__ import annotations
 
-import os
-
 import httpx
 import joblib
 
+from config.settings import RISK_TREND_ARTIFACT_PATH, SCORING_API_BASE_URL, SCORING_API_TIMEOUT_SECONDS
 from guardrails.tool_policy import safe_tool_call
 from mlops.risk_trend_monitor.constants import RISK_TREND_FEATURE_ORDER
 from mlops.risk_trend_monitor.drift_monitor import check_input_drift
 from tools.schemas import CreditAssessmentResult, RiskTrendResult, ScoreFactor
-
-SCORING_API_BASE_URL = os.environ.get(
-    "FINBUDDY_SCORING_API_BASE_URL", "https://bhavyabhandary-finbuddy-scoring.hf.space"
-)
-RISK_TREND_ARTIFACT_PATH = os.environ.get(
-    "RISK_TREND_ARTIFACT_PATH", "./mlops/risk_trend_monitor/artifacts/risk_trend_logreg.joblib"
-)
 
 
 def assess_credit_profile(signals: dict, geography: str | None = None) -> CreditAssessmentResult:
@@ -42,7 +34,7 @@ def assess_credit_profile(signals: dict, geography: str | None = None) -> Credit
         payload = dict(signals)
         if geography:
             payload["geography"] = geography
-        with httpx.Client(timeout=60.0) as client:
+        with httpx.Client(timeout=SCORING_API_TIMEOUT_SECONDS) as client:
             resp = client.post(f"{SCORING_API_BASE_URL}/api/v1/score", json=payload)
             resp.raise_for_status()
             data = resp.json()

@@ -1,0 +1,2 @@
+Your previous output was invalid: {error_message}
+Return ONLY valid JSON.

@@ -4,7 +4,6 @@ Run: uvicorn api.main:app --reload --port 8010
 """
 from __future__ import annotations
 
-import os
 import uuid
 
 from dotenv import load_dotenv
@@ -15,6 +14,7 @@ from sse_starlette.sse import EventSourceResponse
 
 from agent.graph import build_graph
 from agent.nodes.generate import ClaudeProvider, HuggingFaceProvider, LLMProvider, OllamaProvider
+from config import settings
 from ingestion.setu_feed import load_cached_real_profile
 from observability.tracing import trace_run
 from tools.schemas import CreditAssessmentResult
@@ -42,7 +42,7 @@ def _default_provider() -> LLMProvider:
     (added for testing while Claude billing was blocked) is what makes this
     possible without touching agent/graph.py at all.
     """
-    choice = os.environ.get("LLM_PROVIDER", "claude").lower()
+    choice = settings.llm_provider_name()
     if choice == "huggingface":
         return HuggingFaceProvider()
     if choice == "ollama":

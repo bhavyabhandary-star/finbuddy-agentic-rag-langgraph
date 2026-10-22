@@ -20,14 +20,9 @@ from __future__ import annotations
 import numpy as np
 from rank_bm25 import BM25Okapi
 
+from config.settings import CROSS_ENCODER_MODEL, SUFFICIENCY_THRESHOLD  # defined in config/settings.py
 from ingestion.vector_store import VectorStore
 from tools.schemas import RetrievalResult, RetrievedChunk
-
-CROSS_ENCODER_MODEL = "cross-encoder/ms-marco-MiniLM-L-6-v2"
-# Calibrated against real (query, chunk) pairs from this corpus (see module
-# docstring) -- a true match scored 0.996, irrelevant chunks scored ~0.00003,
-# so 0.5 sits with wide margin on both sides rather than splitting hairs.
-SUFFICIENCY_THRESHOLD = 0.5
 
 _cross_encoder = None
 

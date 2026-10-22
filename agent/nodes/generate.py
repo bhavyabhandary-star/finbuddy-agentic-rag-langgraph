@@ -7,54 +7,28 @@ slide 31), forced Pydantic-validated JSON, max_tokens set, provider-agnostic
 from __future__ import annotations
 
 import json
-import os
 from abc import ABC, abstractmethod
 
 from pydantic import ValidationError
 
 from agent.state import AgentState
+from config import settings
+from config.settings import DEFAULT_CLAUDE_MODEL, DEFAULT_HF_MODEL, LANGUAGE_NAMES, MAX_OUTPUT_TOKENS
 from guardrails.input_guardrails import sanitize_retrieved_text
 from guardrails.output_guardrails import is_expected_script, validate_structured_output
 from observability.tracing import RunTracer
+from prompts import ACTIVE_VERSIONS, load_prompt, render_retry_suffix, render_system_prompt
 from tools.schemas import AgentResponse
 
-MAX_OUTPUT_TOKENS = 512  # explicit cap per kickoff_prompt.md's cost/latency section
-
-SYSTEM_PROMPT_TEMPLATE = """\
-## ROLE:
-You are FinBuddy, an empathetic credit coach for gig-economy workers in India.
-You are not a bank — you are a trusted financial coach.
-
-## INSTRUCTIONS:
-Answer the user's question using ONLY the DATA provided below. If the data is
-insufficient to answer confidently, set escalate_to_human to true instead of
-guessing.
-
-## CONSTRAINTS:
-- Never invent a policy detail not present in DATA.
-- Never use protected attributes (gender, religion, caste, pincode) as reasoning.
-- Keep the answer under 4 sentences, plain language, no jargon.
-
-## LANGUAGE:
-Write the "answer" field in {language_name}, in simple everyday words a gig
-worker or small shopkeeper would use — not formal or technical language, even
-if the source text is technical or in English.
-
-## DATA:
-{data}
-
-## OUTPUT FORMAT (strict JSON, matching this schema exactly):
-{{"answer": "...", "confidence": 0.0, "escalate_to_human": false}}
-"""
+# Tunables live in config/settings.py; prompts live in prompts/ (versioned).
+# Re-exported here under the same names so existing imports keep working.
+SYSTEM_PROMPT_TEMPLATE = load_prompt("generate_system")
 
 
 class LLMProvider(ABC):
     @abstractmethod
     def complete(self, system_prompt: str, user_query: str, max_tokens: int) -> str:
         """Returns raw completion text (expected to be JSON per the schema)."""
-
-
-DEFAULT_CLAUDE_MODEL = "claude-sonnet-5"
 
 
 class ClaudeProvider(LLMProvider):
@@ -77,7 +51,7 @@ class OllamaProvider(LLMProvider):
     def complete(self, system_prompt: str, user_query: str, max_tokens: int) -> str:
         import ollama
 
-        model = os.environ.get("OLLAMA_MODEL", "llama3.1")
+        model = settings.ollama_model()
         response = ollama.chat(
             model=model,
             messages=[
@@ -87,9 +61,6 @@ class OllamaProvider(LLMProvider):
             options={"num_predict": max_tokens},
         )
         return response["message"]["content"]
-
-
-DEFAULT_HF_MODEL = "Qwen/Qwen2.5-7B-Instruct"  # ungated, broadly available across HF Inference Providers
 
 
 class HuggingFaceProvider(LLMProvider):
@@ -106,14 +77,14 @@ class HuggingFaceProvider(LLMProvider):
     """
 
     def __init__(self, model: str | None = None, provider: str | None = None):
-        self.model = model or os.environ.get("HF_MODEL", DEFAULT_HF_MODEL)
-        self.provider = provider or os.environ.get("HF_PROVIDER", "featherless-ai")
+        self.model = model or settings.hf_model()
+        self.provider = provider or settings.hf_provider()
 
     def complete(self, system_prompt: str, user_query: str, max_tokens: int) -> str:
         from huggingface_hub import InferenceClient
 
         client = InferenceClient(
-            model=self.model, provider=self.provider, token=os.environ.get("HF_TOKEN")
+            model=self.model, provider=self.provider, token=settings.hf_token()
         )
         # Verified necessary, not optional: without response_format, this model
         # (unlike Claude) frequently prepends prose before the JSON despite an
@@ -144,8 +115,6 @@ CREDIT_ASSESSMENT_DISCLAIMER = {
         "ಇದನ್ನು ನಿರ್ಧಾರ-ಸಹಾಯವಾಗಿ ಮಾತ್ರ ಪರಿಗಣಿಸಿ — ಯಾವುದೇ ಮುಖ್ಯ ನಿರ್ಧಾರವನ್ನು FinBuddy ಬೆಂಬಲ ತಂಡದೊಂದಿಗೆ ಖಚಿತಪಡಿಸಿಕೊಳ್ಳಿ."
     ),
 }
-
-LANGUAGE_NAMES = {"en": "English", "hi": "Hindi", "kn": "Kannada"}
 
 # Fixed, human-authored fallback answer for when the model's own generation
 # fails the is_expected_script guardrail twice in a row -- never LLM-generated,
@@ -223,12 +192,14 @@ def generate_node(
         )
     else:
         data_section = _build_data_section(state)
-        system_prompt = SYSTEM_PROMPT_TEMPLATE.format(data=data_section, language_name=language_name)
+        system_prompt = render_system_prompt(data=data_section, language_name=language_name)
 
         raw = provider.complete(system_prompt, state["query"], MAX_OUTPUT_TOKENS)
 
         def _regenerate(error_message: str) -> str:
-            retry_prompt = system_prompt + f"\n\nYour previous output was invalid: {error_message}\nReturn ONLY valid JSON."
+            retry_prompt = system_prompt + render_retry_suffix(
+                "generate_retry_invalid_json", error_message=error_message
+            )
             return provider.complete(retry_prompt, state["query"], MAX_OUTPUT_TOKENS)
 
         parsed = validate_structured_output(raw, AgentResponse, regenerate=_regenerate)
@@ -241,9 +212,8 @@ def generate_node(
             # genuinely fixes it by chance rather than repeating the same
             # failure deterministically. (Kannada never reaches this branch
             # -- see the unconditional fallback above.)
-            retry_prompt = system_prompt + (
-                f"\n\nYour previous answer was not written in {language_name}. "
-                f"Rewrite the answer fully in {language_name}."
+            retry_prompt = system_prompt + render_retry_suffix(
+                "generate_retry_wrong_script", language_name=language_name
             )
             try:
                 retried_raw = provider.complete(retry_prompt, state["query"], MAX_OUTPUT_TOKENS)
@@ -288,6 +258,7 @@ def generate_node(
             confidence=parsed.confidence,
             escalate_to_human=escalate_to_human,
             model_self_reported_escalate=parsed.escalate_to_human,
+            prompt_version=ACTIVE_VERSIONS["generate_system"],
         )
 
     return {

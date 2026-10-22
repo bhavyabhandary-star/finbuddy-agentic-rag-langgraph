@@ -11,11 +11,11 @@ from __future__ import annotations
 import logging
 from typing import Callable, TypeVar
 
+from config.settings import MAX_RETRIES_PER_TOOL_CALL  # defined in config/settings.py
+
 T = TypeVar("T")
 
 logger = logging.getLogger("guardrails.tool_policy")
-
-MAX_RETRIES_PER_TOOL_CALL = 1  # cap per kickoff_prompt.md's cost/latency section
 
 
 def safe_tool_call(

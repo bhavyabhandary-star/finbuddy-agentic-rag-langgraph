@@ -10,9 +10,10 @@ from typing import Callable, TypeVar
 
 from pydantic import BaseModel, ValidationError
 
+from config.settings import MAX_OUTPUT_VALIDATION_RETRIES  # defined in config/settings.py
+
 SchemaT = TypeVar("SchemaT", bound=BaseModel)
 
-MAX_OUTPUT_VALIDATION_RETRIES = 1
 
 # Unicode script blocks for languages generate.py can be asked to answer in.
 # Only languages with a real script constraint go here -- "en" (Latin) is

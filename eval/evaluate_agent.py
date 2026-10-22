@@ -8,11 +8,9 @@ from __future__ import annotations
 import argparse
 import sys
 
+from config.settings import GATE_MIN_ROUTING_ACCURACY  # below this fraction routed correctly, --gate fails the build
 from eval.scenarios import SCENARIOS
 from mlops.intent_router.infer import classify_intent
-
-# Below this fraction of scenarios routed correctly, --gate fails the build.
-GATE_MIN_ROUTING_ACCURACY = 0.75
 
 
 def run_scenarios() -> dict:

@@ -7,9 +7,8 @@ from __future__ import annotations
 
 from typing import TypedDict
 
+from config.settings import MAX_LOOP_ITERATIONS  # noqa: F401 -- re-exported; defined in config/settings.py
 from tools.schemas import CreditAssessmentResult, RetrievedChunk, RiskTrendResult
-
-MAX_LOOP_ITERATIONS = 3  # hard cap per kickoff_prompt.md's cost/latency section
 
 
 class AgentState(TypedDict, total=False):

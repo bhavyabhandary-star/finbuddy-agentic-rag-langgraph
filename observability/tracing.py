@@ -13,7 +13,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
 
-TRACE_DIR = Path("./traces")
+from config.settings import TRACE_DIR  # defined in config/settings.py
 
 
 @dataclass

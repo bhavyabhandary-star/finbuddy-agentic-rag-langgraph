@@ -55,7 +55,35 @@ tests/          pytest suite
 ui/             finbuddy_console.html -- persona-based credit-assessment +
                 policy Q&A console, deployed via GitHub Pages (see Deployment)
 docs/           additional design notes, the LangGraph diagram, demo checklist
+
+config/         every tunable and env-driven setting in one place (settings.py):
+                model params, thresholds, loop/retry caps, endpoints, eval gate.
+                Secrets are read from the environment, never given in-code defaults
+prompts/        every LLM-facing instruction, versioned (prompts/<name>/vN.txt);
+                a published version is immutable -- change wording by adding vN+1
+                and moving ACTIVE_VERSIONS. The live version is written into each
+                generate-step trace
 ```
+
+### How this maps to the standard AI-agent project layout
+
+| Standard folder | Here | Notes |
+|---|---|---|
+| `config/` | `config/` | Added: tunables + env settings centralised; `tests/test_config.py` fails if a module re-defines one |
+| `data/` | `data/`, `ingestion/`, `chroma_data/` | Raw PDFs and the cached Setu profile are gitignored by design |
+| `agents/` + `workflows/` | `agent/` | `graph.py` is the workflow (LangGraph state machine), `nodes/` are the steps |
+| `tools/` | `tools/` | Plus `guardrails/tool_policy.py` for safe-call/retry/confirmation rules |
+| `memory/` | `memory/` | Short-term only; long-term memory deliberately deferred |
+| `prompts/` | `prompts/` | Added: prompts moved out of `agent/nodes/generate.py`, versioned, hash-frozen in tests |
+| `evaluation/` | `eval/` | Scenario harness, RAGAS, CI gate |
+| `app/` | `api/`, `ui/` | FastAPI endpoint + console UI |
+| `scripts/`, `docs/`, Docker | same names | |
+| *(not in the standard list)* | `guardrails/`, `observability/`, `mlops/` | Kept: input/output/tool guardrails, tracing, Intent Router + drift monitors |
+
+Directory names that differ from the standard list (`agent/`, `eval/`, `api/`) were
+kept on purpose: the Dockerfile's `uvicorn api.main:app`, CI's `eval.evaluate_agent`
+and every import depend on them, so renaming would be churn with deploy risk and no
+behaviour benefit.
 
 ## Status
 
