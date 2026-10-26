@@ -75,7 +75,7 @@ prompts/        every LLM-facing instruction, versioned (prompts/<name>/vN.txt);
 | `tools/` | `tools/` | Plus `guardrails/tool_policy.py` for safe-call/retry/confirmation rules |
 | `memory/` | `memory/` | Short-term only; long-term memory deliberately deferred |
 | `prompts/` | `prompts/` | Added: prompts moved out of `agent/nodes/generate.py`, versioned, hash-frozen in tests |
-| `evaluation/` | `eval/` | Scenario harness, RAGAS, CI gate |
+| `evaluation/` | `eval/` | Held-out + blind routing sets (leak-tested), RAGAS with an independent judge, CI gate |
 | `app/` | `api/`, `ui/` | FastAPI endpoint + console UI |
 | `scripts/`, `docs/`, Docker | same names | |
 | *(not in the standard list)* | `guardrails/`, `observability/`, `mlops/` | Kept: input/output/tool guardrails, tracing, Intent Router + drift monitors |
@@ -157,8 +157,37 @@ genuine human sign-off per `registry.py`'s governance gate; it's discarded
 when the runner ends. Also pinned `LogisticRegression`'s own `random_state`
 (the `saga` solver has randomness independent of the train/test split's own
 seed), since training wasn't fully reproducible run to run before that. The
-gate now genuinely scores a real model: 100% routing accuracy with real,
-varied confidence values, verified stable across repeated CI runs.
+gate now scores a real model rather than the keyword fallback.
+
+**Correction (2026-10-25):** the "100% routing accuracy" this section used to
+quote was itself a leak. The four scenarios in `eval/scenarios.py` are
+word-for-word members of the router's training set, so the gate was measuring
+memorisation. The gate now scores queries the router has never seen
+(`eval/heldout_scenarios.py`, `eval/blind_scenarios.py`); the honest figure
+is ~80% on the blind set. See `docs/robustness_checklist.md`.
+
+## Robustness
+
+An 8-point production-readiness audit (data leakage, evaluation, failure
+handling, latency, cost, security, monitoring, feedback) drove a set of fixes;
+`docs/robustness_checklist.md` has the before/after table, the measurements,
+and -- explicitly -- what is still open. In short:
+
+- **Failure handling:** a provider outage, timeout or invalid JSON becomes a fixed
+  human-escalating answer (`failure_reason`), never a 500; a runtime grounding check
+  (`guardrails/grounding.py`) refuses an English policy answer that states a figure
+  not in the retrieved text.
+- **Privacy / access:** PAN, Aadhaar and mobile numbers are redacted before routing,
+  the LLM and the trace files; optional `X-API-Key`; per-client rate limit; validated
+  `session_id` (it used to become a filename).
+- **Cost / latency:** startup warm-up, a TTL cache for grounded policy answers, a
+  non-blocking stream endpoint, per-run token and latency accounting (cost stays
+  `null` until `LLM_PRICE_*` is set -- it is not guessed).
+- **Evaluation:** held-out and blind routing sets with a leak test; RAG answers graded by an
+  independent judge (`eval/judge_eval.py`; RAGAS itself is blocked by an Application Control
+  policy on the dev machine).
+- **Monitoring / feedback:** `GET /metrics`; router drift from user feedback and from a
+  label-free confidence signal; `POST /agent/feedback` -> reviewed corrections -> retrain.
 
 ## Language support
 

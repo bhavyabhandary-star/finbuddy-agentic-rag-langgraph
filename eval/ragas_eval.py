@@ -22,7 +22,8 @@ from __future__ import annotations
 import os
 import sys
 
-from agent.nodes.generate import DEFAULT_HF_MODEL, HuggingFaceProvider, generate_node
+from agent.nodes.generate import HuggingFaceProvider, generate_node
+from config import settings
 from ingestion.vector_store import VectorStore
 from tools.rag_tools import retrieve_pdf_chunks
 
@@ -61,6 +62,52 @@ REAL_QA_SEEDS: list[dict] = [
             "leg of a transaction, if any, may also be stored abroad)."
         ),
     },
+    {
+        "question": "What is the cooling-off period for a digital loan under RBI's Digital Lending Directions?",
+        "ground_truth": (
+            "The borrower must be given an explicit option to exit a digital loan by paying the "
+            "principal and the proportionate APR without any penalty during an initial cooling-off "
+            "period, which the RE's Board sets in its loan policy and which shall not be less than one day."
+        ),
+    },
+    {
+        "question": "Who is a Consent Manager under the DPDP Act?",
+        "ground_truth": (
+            "A person registered with the Board who acts as a single point of contact to enable a "
+            "Data Principal to give, manage, review and withdraw her consent through an accessible, "
+            "transparent and interoperable platform."
+        ),
+    },
+    {
+        "question": "What is the minimum net owned fund required for an Account Aggregator?",
+        "ground_truth": (
+            "Every company seeking registration as an Account Aggregator shall have a net owned fund "
+            "of not less than rupees two crore, or such higher amount as the Bank may specify."
+        ),
+    },
+    {
+        "question": "What can a Data Principal ask a Data Fiduciary to do about her personal data under the DPDP Act?",
+        "ground_truth": (
+            "A Data Principal has the right to correction, completion, updating and erasure of her "
+            "personal data; on a request for erasure the Data Fiduciary shall erase it unless retention "
+            "is necessary for the specified purpose or for compliance with any law."
+        ),
+    },
+    {
+        "question": "How long must a Data Fiduciary retain personal data and processing logs under the DPDP Rules?",
+        "ground_truth": (
+            "A Data Fiduciary shall retain the personal data, associated traffic data and other logs of "
+            "the processing for a minimum period of one year from the date of such processing, after "
+            "which they shall be erased unless further retention is required by any other law."
+        ),
+    },
+    {
+        "question": "Must a Key Fact Statement be given for a digital loan?",
+        "ground_truth": (
+            "Yes. The RE shall provide a Key Fact Statement (KFS) as per RBI's instructions on Key Facts "
+            "Statement for Loans and Advances."
+        ),
+    },
 ]
 
 
@@ -81,6 +128,7 @@ def build_real_qa_pairs(vector_store: VectorStore | None = None) -> list[dict]:
             "top_score": retrieval.top_score,
             "sufficient": retrieval.sufficient,
         }
+        state["query"] = seed["question"]
         result = generate_node(state, provider=provider)
         qa_pairs.append(
             {
@@ -88,6 +136,11 @@ def build_real_qa_pairs(vector_store: VectorStore | None = None) -> list[dict]:
                 "contexts": [c.text for c in retrieval.chunks],
                 "answer": result["answer"],
                 "ground_truth": seed["ground_truth"],
+                # Not a RAGAS column: lets the report separate "answered" from "escalated
+                # instead" -- an escalation is not an unfaithful answer, and must not be
+                # silently averaged in as one (nor silently dropped).
+                "escalated": bool(result.get("escalate_to_human")),
+                "failure_reason": result.get("failure_reason"),
             }
         )
     return qa_pairs
@@ -119,13 +172,15 @@ def build_real_qa_pairs_from_production(
             f"{space_url}/agent/run", json={"query": seed["question"]}, timeout=90.0
         )
         response.raise_for_status()
-        answer = response.json()["answer"]
+        body = response.json()
         qa_pairs.append(
             {
                 "question": seed["question"],
                 "contexts": [c.text for c in retrieval.chunks],
-                "answer": answer,
+                "answer": body["answer"],
                 "ground_truth": seed["ground_truth"],
+                "escalated": bool(body.get("escalate_to_human")),
+                "failure_reason": body.get("failure_reason"),
             }
         )
     return qa_pairs
@@ -140,7 +195,7 @@ def _default_ragas_llm():
     from ragas.llms import LangchainLLMWrapper
 
     chat = ChatOpenAI(
-        model=DEFAULT_HF_MODEL,
+        model=settings.ragas_judge_model(),
         api_key=os.environ.get("HF_TOKEN"),
         base_url=f"https://router.huggingface.co/{os.environ.get('HF_PROVIDER', 'featherless-ai')}/v1",
     )
@@ -157,6 +212,9 @@ def _default_ragas_embeddings():
     return LangchainEmbeddingsWrapper(HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2"))
 
 
+_RAGAS_COLUMNS = ("question", "contexts", "answer", "ground_truth")
+
+
 def evaluate_rag_quality(qa_pairs: list[dict], llm=None, embeddings=None) -> dict:
     """qa_pairs: list of {"question", "contexts", "answer", "ground_truth"}.
 
@@ -167,10 +225,13 @@ def evaluate_rag_quality(qa_pairs: list[dict], llm=None, embeddings=None) -> dic
         from datasets import Dataset
         from ragas import evaluate
         from ragas.metrics import answer_relevancy, context_precision, context_recall, faithfulness
-    except ImportError:
-        raise RuntimeError("ragas is not installed — run `pip install -r requirements.txt`.")
+    except ImportError as exc:
+        # Report the REAL cause. This used to say "ragas is not installed" for any ImportError,
+        # which hid that ragas WAS installed and one of its native dependencies (tiktoken) was
+        # being blocked by a Windows Application Control policy.
+        raise RuntimeError(f"ragas could not be imported ({type(exc).__name__}: {exc}).") from exc
 
-    dataset = Dataset.from_list(qa_pairs)
+    dataset = Dataset.from_list([{k: v for k, v in p.items() if k in _RAGAS_COLUMNS} for p in qa_pairs])
     result = evaluate(
         dataset,
         metrics=[faithfulness, answer_relevancy, context_precision, context_recall],
@@ -191,7 +252,15 @@ if __name__ == "__main__":
         pairs = build_real_qa_pairs_from_production(space_url)
     else:
         pairs = build_real_qa_pairs()
+    generator = settings.hf_model()
+    judge = settings.ragas_judge_model()
+    if judge == generator:
+        print(f"WARNING: judge == generator ({judge}). The model is grading its own answers; treat the scores as optimistic.\n")
     for p in pairs:
         print(f"Q: {p['question']}\nA: {p['answer']}\n")
-    scores = evaluate_rag_quality(pairs)
+    answered = [p for p in pairs if not p.get("escalated")]
+    print(f"Answered {len(answered)}/{len(pairs)}; the other {len(pairs) - len(answered)} escalated to a human "
+          f"and are excluded from the scores below (reported, not hidden).")
+    scores = evaluate_rag_quality(answered)
     print(scores)
+    print(f"generator={generator}  judge={judge}  n_scored={len(answered)}")

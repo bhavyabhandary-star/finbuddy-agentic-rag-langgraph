@@ -30,3 +30,6 @@ mlops/risk_trend_monitor/artifacts/
 
 # Per-run trace output (observability/tracing.py) — ephemeral, not a source of truth
 traces/
+
+# Captured user feedback (api/feedback.py) -- may contain user text; never commit
+feedback/

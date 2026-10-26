@@ -100,10 +100,30 @@ def select_and_save_best(results: dict, metric: str = "f1_macro") -> str:
     import joblib
 
     best_run = max(results, key=lambda name: results[name]["metrics"][metric])
+
+    # The split was only for CHOOSING a config and estimating generalisation. Shipping the
+    # pipeline that was fit on that split would throw away half the labelled data the winner
+    # (e.g. split_50_50) never saw -- on a ~200-example set that is a large, avoidable loss.
+    # So the artifact is the winning regularisation refit on every example. Its honest quality
+    # number is eval/evaluate_agent.py's held-out report, not the split metrics below.
+    reg_name = next(name for name in REGULARIZATIONS if best_run.startswith(name))
+    texts, labels = load_training_examples()
+    final_pipeline = _build_pipeline(**REGULARIZATIONS[reg_name])
+    final_pipeline.fit(texts, labels)
+
     ARTIFACTS_DIR.mkdir(parents=True, exist_ok=True)
-    joblib.dump(results[best_run]["pipeline"], ARTIFACTS_DIR / "intent_router.joblib")
+    joblib.dump(final_pipeline, ARTIFACTS_DIR / "intent_router.joblib")
     with open(ARTIFACTS_DIR / "intent_router_metrics.json", "w") as f:
-        json.dump({"selected_run": best_run, **results[best_run]["metrics"]}, f, indent=2)
+        json.dump(
+            {
+                "selected_run": best_run,
+                "final_model_fit_on": f"all {len(texts)} labelled examples",
+                "selection_split_metrics": results[best_run]["metrics"],
+                **results[best_run]["metrics"],
+            },
+            f,
+            indent=2,
+        )
     return best_run
 
 

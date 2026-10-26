@@ -1,0 +1,111 @@
+{
+  "run_at": "2026-10-25",
+  "generator": "Qwen/Qwen2.5-7B-Instruct",
+  "judge": "meta-llama/Llama-3.1-8B-Instruct",
+  "judge_is_generator": false,
+  "n_questions": 9,
+  "n_answered": 8,
+  "n_escalated": 1,
+  "n_judge_errors": 0,
+  "claim_faithfulness_mean": 0.969,
+  "correct": "8/8",
+  "context_recall_mean": 0.97,
+  "runtime_grounding_pass_rate": 1.0,
+  "rows": [
+    {
+      "question": "What is the cap on Default Loss Guarantee (DLG) cover on a loan portfolio?",
+      "answer": "The cap on DLG cover on a loan portfolio is 5% of the amount disbursed from that portfolio. For example, if your portfolio amounts to ₹40 crore, the DLG cover cannot exceed ₹2 crore.",
+      "escalated": false,
+      "claim_faithfulness": 0.75,
+      "unsupported_claims": [
+        "The cap on DLG cover is 5% of the total amount of the loan portfolio."
+      ],
+      "correct": true,
+      "correctness_reason": "The answer states the same essential fact as the reference without contradicting it.",
+      "context_recall": 1.0,
+      "runtime_grounding_passed": true
+    },
+    {
+      "question": "What must consent from a Data Principal look like under the DPDP Act?",
+      "answer": "I couldn't verify that answer against the RBI and DPDP documents I have, so I won't state it as policy. Let me connect you with a human coach.",
+      "escalated": true
+    },
+    {
+      "question": "Where must payment system data be stored under RBI's data storage rules?",
+      "answer": "Payment system data must be stored in a system only in India. For the foreign leg of the transaction, if any, the data can also be stored in the foreign country, if required.",
+      "escalated": false,
+      "claim_faithfulness": 1.0,
+      "unsupported_claims": [],
+      "correct": true,
+      "correctness_reason": "The answer captures the key fact of storing data in India and allows for extra detail about storing foreign legs abroad if required.",
+      "context_recall": 0.938,
+      "runtime_grounding_passed": true
+    },
+    {
+      "question": "What is the cooling-off period for a digital loan under RBI's Digital Lending Directions?",
+      "answer": "The cooling-off period for a digital loan is determined by the Board of the RE and must be at least one day. During this period, the borrower can exit the loan by paying the principal and a proportionate APR without any penalty.",
+      "escalated": false,
+      "claim_faithfulness": 1.0,
+      "unsupported_claims": [],
+      "correct": true,
+      "correctness_reason": "essentially the same fact with extra detail",
+      "context_recall": 0.947,
+      "runtime_grounding_passed": true
+    },
+    {
+      "question": "Who is a Consent Manager under the DPDP Act?",
+      "answer": "A Consent Manager is a person registered with the Board, who acts as a single point of contact to help you give, manage, review, and withdraw your consent through an accessible and transparent platform.",
+      "escalated": false,
+      "claim_faithfulness": 1.0,
+      "unsupported_claims": [],
+      "correct": true,
+      "correctness_reason": "ANSWER adds 'you' instead of 'her' but still conveys the same essential fact as the REFERENCE.",
+      "context_recall": 1.0,
+      "runtime_grounding_passed": true
+    },
+    {
+      "question": "What is the minimum net owned fund required for an Account Aggregator?",
+      "answer": "Every company seeking registration as an Account Aggregator needs at least two crore rupees in net owned funds. If they don't meet this requirement initially, they must meet it within the period of their in-principle approval.",
+      "escalated": false,
+      "claim_faithfulness": 1.0,
+      "unsupported_claims": [],
+      "correct": true,
+      "correctness_reason": "The answer includes the same key fact (two crore rupees) as the reference, and also provides an additional correct detail (the time frame for meeting the requirement).",
+      "context_recall": 1.0,
+      "runtime_grounding_passed": true
+    },
+    {
+      "question": "What can a Data Principal ask a Data Fiduciary to do about her personal data under the DPDP Act?",
+      "answer": "A Data Principal can ask the Data Fiduciary to erase her personal data or obtain information about her data and its processing.",
+      "escalated": false,
+      "claim_faithfulness": 1.0,
+      "unsupported_claims": [],
+      "correct": true,
+      "correctness_reason": "The answer states the same essential fact as the reference without contradicting it, with extra correct detail about obtaining information about her data and its processing.",
+      "context_recall": 0.875,
+      "runtime_grounding_passed": true
+    },
+    {
+      "question": "How long must a Data Fiduciary retain personal data and processing logs under the DPDP Rules?",
+      "answer": "A Data Fiduciary must retain personal data and processing logs for at least one year from the date of processing. After that, the data and logs should be erased, unless another law requires a longer retention period.",
+      "escalated": false,
+      "claim_faithfulness": 1.0,
+      "unsupported_claims": [],
+      "correct": true,
+      "correctness_reason": "Essential facts are the same without contradiction.",
+      "context_recall": 1.0,
+      "runtime_grounding_passed": true
+    },
+    {
+      "question": "Must a Key Fact Statement be given for a digital loan?",
+      "answer": "Yes, a Key Fact Statement (KFS) must be provided for a digital loan. It should automatically flow to the borrower via their registered and verified email or SMS after the loan contract or transaction is executed.",
+      "escalated": false,
+      "claim_faithfulness": 1.0,
+      "unsupported_claims": [],
+      "correct": true,
+      "correctness_reason": "The ANSWER states the same essential fact as the REFERENCE without contradicting it.",
+      "context_recall": 1.0,
+      "runtime_grounding_passed": true
+    }
+  ]
+}

@@ -9,6 +9,7 @@ from pathlib import Path
 
 import joblib
 
+from config import settings
 from mlops.intent_router.data import ROUTES
 from mlops.intent_router.registry import get_current_production_artifact
 
@@ -23,7 +24,10 @@ _model = None
 def _load_model():
     global _model
     if _model is None:
-        artifact_path = get_current_production_artifact()
+        # The override loads a CANDIDATE router for evaluation / a local run; it is not a
+        # promotion (that still needs the registry's human sign-off).
+        override = settings.intent_router_artifact_override()
+        artifact_path = Path(override) if override else get_current_production_artifact()
         if artifact_path is not None:
             _model = joblib.load(artifact_path)
     return _model

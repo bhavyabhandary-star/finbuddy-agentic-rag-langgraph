@@ -6,6 +6,7 @@ agent/graph.py, capped at MAX_LOOP_ITERATIONS.
 from __future__ import annotations
 
 from agent.state import AgentState
+from guardrails.input_guardrails import retrieval_query
 from ingestion.vector_store import VectorStore
 from observability.tracing import RunTracer
 from tools.rag_tools import retrieve_pdf_chunks
@@ -15,7 +16,7 @@ _vector_store = VectorStore()
 
 def retrieve_node(state: AgentState, tracer: RunTracer | None = None) -> AgentState:
     top_k = 5 + 2 * state.get("loop_count", 0)  # widen the search on a loop-back
-    result = retrieve_pdf_chunks(state["query"], _vector_store, top_k=top_k)
+    result = retrieve_pdf_chunks(retrieval_query(state["query"]), _vector_store, top_k=top_k)
 
     if tracer:
         tracer.log_step(

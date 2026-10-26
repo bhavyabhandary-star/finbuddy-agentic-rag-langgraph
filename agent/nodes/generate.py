@@ -7,14 +7,22 @@ slide 31), forced Pydantic-validated JSON, max_tokens set, provider-agnostic
 from __future__ import annotations
 
 import json
+import time
 from abc import ABC, abstractmethod
 
 from pydantic import ValidationError
 
 from agent.state import AgentState
 from config import settings
-from config.settings import DEFAULT_CLAUDE_MODEL, DEFAULT_HF_MODEL, LANGUAGE_NAMES, MAX_OUTPUT_TOKENS
-from guardrails.input_guardrails import sanitize_retrieved_text
+from config.settings import (
+    DEFAULT_CLAUDE_MODEL,
+    DEFAULT_HF_MODEL,
+    LANGUAGE_NAMES,
+    LLM_TIMEOUT_SECONDS,
+    MAX_OUTPUT_TOKENS,
+)
+from guardrails.grounding import check_grounding
+from guardrails.input_guardrails import sanitize_retrieved_text, sanitize_with_flags
 from guardrails.output_guardrails import is_expected_script, validate_structured_output
 from observability.tracing import RunTracer
 from prompts import ACTIVE_VERSIONS, load_prompt, render_retry_suffix, render_system_prompt
@@ -25,7 +33,16 @@ from tools.schemas import AgentResponse
 SYSTEM_PROMPT_TEMPLATE = load_prompt("generate_system")
 
 
+class LLMUnavailableError(Exception):
+    """The LLM provider failed (outage, timeout, rate limit, auth, network). generate_node
+    turns this into a clean human escalation instead of letting it become an HTTP 500."""
+
+
 class LLMProvider(ABC):
+    # (input_tokens, output_tokens) of the most recent call when the provider reports it;
+    # None means "not reported" and the caller falls back to a labelled estimate.
+    last_usage: tuple[int, int] | None = None
+
     @abstractmethod
     def complete(self, system_prompt: str, user_query: str, max_tokens: int) -> str:
         """Returns raw completion text (expected to be JSON per the schema)."""
@@ -38,8 +55,10 @@ class ClaudeProvider(LLMProvider):
     def complete(self, system_prompt: str, user_query: str, max_tokens: int) -> str:
         from langchain_anthropic import ChatAnthropic
 
-        llm = ChatAnthropic(model=self.model, max_tokens=max_tokens)
+        llm = ChatAnthropic(model=self.model, max_tokens=max_tokens, timeout=LLM_TIMEOUT_SECONDS)
         response = llm.invoke([("system", system_prompt), ("human", user_query)])
+        usage = getattr(response, "usage_metadata", None) or {}
+        self.last_usage = (usage["input_tokens"], usage["output_tokens"]) if usage else None
         return response.content
 
 
@@ -52,7 +71,7 @@ class OllamaProvider(LLMProvider):
         import ollama
 
         model = settings.ollama_model()
-        response = ollama.chat(
+        response = ollama.Client(timeout=LLM_TIMEOUT_SECONDS).chat(
             model=model,
             messages=[
                 {"role": "system", "content": system_prompt},
@@ -60,6 +79,8 @@ class OllamaProvider(LLMProvider):
             ],
             options={"num_predict": max_tokens},
         )
+        counts = (response.get("prompt_eval_count") or 0, response.get("eval_count") or 0)
+        self.last_usage = counts if any(counts) else None
         return response["message"]["content"]
 
 
@@ -84,7 +105,7 @@ class HuggingFaceProvider(LLMProvider):
         from huggingface_hub import InferenceClient
 
         client = InferenceClient(
-            model=self.model, provider=self.provider, token=settings.hf_token()
+            model=self.model, provider=self.provider, token=settings.hf_token(), timeout=LLM_TIMEOUT_SECONDS
         )
         # Verified necessary, not optional: without response_format, this model
         # (unlike Claude) frequently prepends prose before the JSON despite an
@@ -97,6 +118,8 @@ class HuggingFaceProvider(LLMProvider):
             max_tokens=max_tokens,
             response_format={"type": "json_object"},
         )
+        usage = getattr(response, "usage", None)
+        self.last_usage = (usage.prompt_tokens, usage.completion_tokens) if usage else None
         return response.choices[0].message.content
 
 
@@ -131,6 +154,57 @@ WRONG_SCRIPT_FALLBACK_ANSWER = {
         "ದಯವಿಟ್ಟು ಇಂಗ್ಲಿಷ್‌ನಲ್ಲಿ ಕೇಳಿ — ನಾನು ಸಹಾಯ ಮಾಡಲು ಪ್ರಯತ್ನಿಸುತ್ತೇನೆ."
     ),
 }
+
+
+# Fixed, human-authored strings (never LLM-generated, same reasoning as the disclaimers above).
+# The hi/kn wording mirrors the existing tool-error escalation text in agent/graph.py; it has
+# not been reviewed by a native speaker.
+LLM_UNAVAILABLE_MESSAGE = {
+    "en": (
+        "I couldn't prepare a verified answer just now because the language model is not "
+        "responding. Please try again shortly, or a human coach can help directly."
+    ),
+    "hi": (
+        "भाषा मॉडल अभी जवाब नहीं दे रहा, इसलिए मैं अभी एक सत्यापित जवाब तैयार नहीं कर पा रही। "
+        "कृपया थोड़ी देर बाद फिर कोशिश करें, या सीधे एक इंसान कोच से मदद लें।"
+    ),
+    "kn": (
+        "ಭಾಷಾ ಮಾದರಿ ಈಗ ಪ್ರತಿಕ್ರಿಯಿಸುತ್ತಿಲ್ಲ, ಆದ್ದರಿಂದ ಪರಿಶೀಲಿತ ಉತ್ತರ ನೀಡಲು ಸಾಧ್ಯವಾಗುತ್ತಿಲ್ಲ. "
+        "ದಯವಿಟ್ಟು ಸ್ವಲ್ಪ ಸಮಯದ ನಂತರ ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ, ಅಥವಾ ನೇರವಾಗಿ ಮಾನವ ಕೋಚ್ ಸಹಾಯ ಪಡೆಯಿರಿ."
+    ),
+}
+# Only English policy answers are grounding-checked (see guardrails/grounding.py), so en only.
+UNGROUNDED_ANSWER_MESSAGE = (
+    "I couldn't verify that answer against the RBI and DPDP documents I have, so I won't state it "
+    "as policy. Let me connect you with a human coach."
+)
+
+
+def _complete(provider: LLMProvider, system_prompt: str, user_query: str, tracer: RunTracer | None) -> str:
+    """One LLM call, with provider failures normalised and usage / latency recorded."""
+    provider.last_usage = None
+    started = time.perf_counter()
+    attempts = 1 + settings.MAX_LLM_CALL_RETRIES
+    for attempt in range(1, attempts + 1):
+        try:
+            raw = provider.complete(system_prompt, user_query, MAX_OUTPUT_TOKENS)
+            break
+        except Exception as exc:  # noqa: BLE001 -- any provider failure (network, 429, 5xx, auth, timeout)
+            if tracer:
+                tracer.log_step(
+                    "generate", decision="llm_call_failed", attempt=attempt, error=f"{type(exc).__name__}: {exc}"[:300]
+                )
+            if attempt == attempts:
+                raise LLMUnavailableError(f"{type(exc).__name__}: {exc}") from exc
+            time.sleep(settings.LLM_RETRY_BACKOFF_SECONDS)
+    if tracer:
+        tracer.cost.record_llm_call(
+            prompt_text=system_prompt + user_query,
+            completion_text=raw,
+            reported_usage=provider.last_usage,
+            seconds=time.perf_counter() - started,
+        )
+    return raw
 
 
 def _deterministic_sources(state: AgentState) -> list[str]:
@@ -168,7 +242,35 @@ def _build_data_section(state: AgentState) -> str:
     return "\n---\n".join(sanitized) if sanitized else "(no relevant context retrieved)"
 
 
+def _degraded(state: AgentState, reason: str, detail: str, tracer: RunTracer | None) -> AgentState:
+    """Fail closed: a clean, fixed, human-escalating answer -- never a 500, never a guess."""
+    language = state.get("response_language") or "en"
+    if tracer:
+        tracer.log_step("generate", decision=f"degraded: {reason}", error=detail[:300], routed_to_human=True)
+    return {
+        **state,
+        "answer": LLM_UNAVAILABLE_MESSAGE.get(language, LLM_UNAVAILABLE_MESSAGE["en"]),
+        "sources": [],
+        "confidence": 0.0,
+        "escalate_to_human": True,
+        "disclaimer": None,
+        "failure_reason": reason,
+    }
+
+
 def generate_node(
+    state: AgentState, provider: LLMProvider | None = None, tracer: RunTracer | None = None
+) -> AgentState:
+    try:
+        return _generate_core(state, provider, tracer)
+    except LLMUnavailableError as exc:
+        return _degraded(state, "llm_unavailable", str(exc), tracer)
+    except ValidationError as exc:
+        # The model kept returning output that is not valid AgentResponse JSON after the retry.
+        return _degraded(state, "invalid_structured_output", str(exc), tracer)
+
+
+def _generate_core(
     state: AgentState, provider: LLMProvider | None = None, tracer: RunTracer | None = None
 ) -> AgentState:
     provider = provider or ClaudeProvider()
@@ -194,13 +296,13 @@ def generate_node(
         data_section = _build_data_section(state)
         system_prompt = render_system_prompt(data=data_section, language_name=language_name)
 
-        raw = provider.complete(system_prompt, state["query"], MAX_OUTPUT_TOKENS)
+        raw = _complete(provider, system_prompt, state["query"], tracer)
 
         def _regenerate(error_message: str) -> str:
             retry_prompt = system_prompt + render_retry_suffix(
                 "generate_retry_invalid_json", error_message=error_message
             )
-            return provider.complete(retry_prompt, state["query"], MAX_OUTPUT_TOKENS)
+            return _complete(provider, retry_prompt, state["query"], tracer)
 
         parsed = validate_structured_output(raw, AgentResponse, regenerate=_regenerate)
 
@@ -216,9 +318,9 @@ def generate_node(
                 "generate_retry_wrong_script", language_name=language_name
             )
             try:
-                retried_raw = provider.complete(retry_prompt, state["query"], MAX_OUTPUT_TOKENS)
+                retried_raw = _complete(provider, retry_prompt, state["query"], tracer)
                 retried = validate_structured_output(retried_raw, AgentResponse, regenerate=_regenerate)
-            except ValidationError:
+            except (ValidationError, LLMUnavailableError):
                 retried = None
             if retried is not None and is_expected_script(retried.answer, response_language):
                 parsed = retried
@@ -226,6 +328,28 @@ def generate_node(
                 fallback_answer = WRONG_SCRIPT_FALLBACK_ANSWER.get(response_language)
                 if fallback_answer:
                     parsed = parsed.model_copy(update={"answer": fallback_answer})
+
+    guardrail_flags = list(state.get("guardrail_flags", []))
+    chunks = state.get("retrieved_chunks", [])
+    if any(sanitize_with_flags(c.text)[1] for c in chunks):
+        guardrail_flags.append("injection_marker_neutralised")
+
+    failure_reason = None
+    if state.get("route") == "policy" and response_language == "en" and chunks and not parsed.escalate_to_human:
+        grounding = check_grounding(parsed.answer, [c.text for c in chunks], state.get("query", ""))
+        if tracer:
+            tracer.log_step(
+                "grounding_check",
+                decision="grounded" if grounding.grounded else f"UNGROUNDED: {grounding.reason}",
+                word_overlap=round(grounding.word_overlap, 3),
+                ungrounded_numbers=grounding.ungrounded_numbers,
+            )
+        if not grounding.grounded:
+            guardrail_flags.append("ungrounded_answer")
+            failure_reason = "ungrounded_answer"
+            parsed = AgentResponse(
+                answer=UNGROUNDED_ANSWER_MESSAGE, sources=[], confidence=0.0, escalate_to_human=True
+            )
 
     # Classical override, not a request: don't trust the model's own
     # escalate_to_human when the classical sufficiency check already said the
@@ -264,8 +388,12 @@ def generate_node(
     return {
         **state,
         "answer": parsed.answer,
-        "sources": _deterministic_sources(state),
+        # A fixed fallback answer (Kannada always; Hindi when generation failed twice) was NOT
+        # produced from the retrieved text, so it must not cite it.
+        "sources": [] if (failure_reason or parsed.answer in WRONG_SCRIPT_FALLBACK_ANSWER.values()) else _deterministic_sources(state),
         "confidence": parsed.confidence,
         "escalate_to_human": escalate_to_human,
         "disclaimer": disclaimer,
+        "guardrail_flags": guardrail_flags,
+        "failure_reason": failure_reason,
     }

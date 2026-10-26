@@ -51,3 +51,6 @@ class AgentState(TypedDict, total=False):
 
     # guardrail / observability flags
     guardrail_flags: list[str]
+    # Why the answer is a fixed escalation rather than a generated one:
+    # "llm_unavailable" | "invalid_structured_output" | "ungrounded_answer" | None
+    failure_reason: str | None

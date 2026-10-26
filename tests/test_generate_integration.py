@@ -16,6 +16,14 @@ import pytest
 from agent.nodes.generate import ClaudeProvider, HuggingFaceProvider, generate_node
 from tools.schemas import CreditAssessmentResult, RetrievedChunk, ScoreFactor
 
+def _skip_if_provider_unavailable(result, provider_name):
+    """generate_node now degrades a provider outage / billing error into a clean escalation
+    (failure_reason="llm_unavailable") instead of raising. These tests exercise the REAL model,
+    so an unavailable provider must read as "could not run", never as a pass."""
+    if result.get("failure_reason") == "llm_unavailable":
+        pytest.skip(f"{provider_name} provider unavailable: generate_node degraded to a fixed escalation")
+
+
 PROVIDERS = [
     pytest.param(
         "claude",
@@ -52,6 +60,7 @@ def test_generate_node_policy_path_real_call(provider_name, provider_cls):
     }
 
     result = generate_node(state, provider=provider_cls())
+    _skip_if_provider_unavailable(result, provider_name)
 
     print(f"\n--- Generate node output (policy path, provider={provider_name}) ---")
     print("answer:", result["answer"])
@@ -92,6 +101,7 @@ def test_generate_node_credit_assessment_path_real_call(provider_name, provider_
     }
 
     result = generate_node(state, provider=provider_cls())
+    _skip_if_provider_unavailable(result, provider_name)
 
     print(f"\n--- Generate node output (credit_assessment path, provider={provider_name}) ---")
     print("answer:", result["answer"])
@@ -117,6 +127,7 @@ def test_generate_node_escalates_on_insufficient_context(provider_name, provider
     }
 
     result = generate_node(state, provider=provider_cls())
+    _skip_if_provider_unavailable(result, provider_name)
 
     print(f"\n--- Generate node output (insufficient context, provider={provider_name}) ---")
     print("answer:", result["answer"])

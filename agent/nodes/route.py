@@ -6,12 +6,13 @@ to decide policy / credit_assessment / off_topic before any tool runs.
 from __future__ import annotations
 
 from agent.state import AgentState
+from guardrails.input_guardrails import retrieval_query
 from mlops.intent_router.infer import classify_intent
 from observability.tracing import RunTracer
 
 
 def route_node(state: AgentState, tracer: RunTracer | None = None) -> AgentState:
-    route, confidence = classify_intent(state["query"])
+    route, confidence = classify_intent(retrieval_query(state["query"]))
     if tracer:
         tracer.log_step(
             "route",
