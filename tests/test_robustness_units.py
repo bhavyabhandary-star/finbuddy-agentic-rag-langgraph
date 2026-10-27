@@ -178,6 +178,28 @@ def test_rate_limiter_blocks_the_burst_then_recovers_and_isolates_clients():
     assert limiter.check("1.1.1.1", now=61) is None
 
 
+def _request(client_host, xff=None):
+    from starlette.requests import Request
+
+    headers = [(b"x-forwarded-for", xff.encode())] if xff else []
+    return Request({"type": "http", "headers": headers, "client": (client_host, 1234)})
+
+
+def test_rate_limit_keys_on_the_forwarded_client_behind_a_proxy(monkeypatch):
+    from api.security import client_id
+
+    monkeypatch.delenv("TRUST_PROXY_HEADERS", raising=False)
+    monkeypatch.delenv("SPACE_ID", raising=False)
+    behind_proxy = _request("10.0.0.1", "203.0.113.7, 10.0.0.1")
+    assert client_id(behind_proxy) == "10.0.0.1"  # direct server: the header is NOT believed
+    monkeypatch.setenv("SPACE_ID", "BhavyaBhandary/finbuddy-langgraph-agent")  # set by HF on a Space
+    assert client_id(behind_proxy) == "203.0.113.7"
+    assert client_id(_request("10.0.0.1")) == "10.0.0.1"  # no header: fall back to the peer
+    monkeypatch.delenv("SPACE_ID")
+    monkeypatch.setenv("TRUST_PROXY_HEADERS", "1")
+    assert client_id(behind_proxy) == "203.0.113.7"
+
+
 # ---------------------------------------------------------------- drift monitor
 
 

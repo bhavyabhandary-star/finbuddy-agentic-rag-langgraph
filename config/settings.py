@@ -147,10 +147,14 @@ def api_key() -> str | None:
 
 
 def trust_proxy_headers() -> bool:
-    """Behind HF Spaces / a reverse proxy the socket peer is the proxy, so rate limiting
-    keys on X-Forwarded-For instead. Off by default: a directly-exposed server must not
-    believe a client-supplied header."""
-    return os.environ.get("TRUST_PROXY_HEADERS", "0") == "1"
+    """Behind a reverse proxy the socket peer is the proxy, so without this every visitor
+    shares ONE rate-limit bucket. On when TRUST_PROXY_HEADERS=1, and automatically on a
+    HuggingFace Space (HF sets SPACE_ID in the container; the Space is only reachable through
+    HF's proxy). Off otherwise: a directly-exposed server must not believe a client-supplied
+    header. Caveat: the first X-Forwarded-For entry is client-controllable, so a hostile
+    caller can rotate it to dodge the limit -- it protects against loops and accidents, not a
+    determined attacker."""
+    return os.environ.get("TRUST_PROXY_HEADERS", "0") == "1" or bool(os.environ.get("SPACE_ID"))
 
 
 def intent_router_artifact_override() -> str | None:
