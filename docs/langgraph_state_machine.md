@@ -52,3 +52,20 @@ unconditional (`add_edge`).
 directly (`_DEFAULT_ESCALATION_MESSAGE` / `_TOOL_ERROR_ESCALATION_MESSAGE`),
 which is why an off-topic query or a failed tool call is both cheaper and
 faster than a normal answer, not slower.
+
+## Failure paths inside `generate` (no extra graph edges)
+
+The graph's shape did not change, but `generate` is no longer a single happy path. It fails
+closed to a fixed, human-escalating answer (`failure_reason` in the response and trace) instead
+of raising:
+
+| Condition | `failure_reason` | Answer |
+|---|---|---|
+| Provider outage / timeout / 429 (one retry first) | `llm_unavailable` | fixed "language model is not responding" message (en / hi / kn) |
+| Model keeps returning invalid JSON after the retry | `invalid_structured_output` | same fixed message |
+| English policy answer states a figure not in the retrieved text, or < 50% of its content words appear there (`guardrails/grounding.py`) | `ungrounded_answer` | fixed "could not verify" message, no sources |
+| Anything else raises inside the graph (API layer) | `internal_error` | the standard escalation message |
+
+Before the graph runs, the API layer redacts PAN / Aadhaar / mobile numbers; `route` and
+`retrieve` see the question without its PII sentence (`retrieval_query`), `generate` sees the
+redacted text. Escalations and fixed fallbacks never cite sources they were not generated from.

@@ -42,16 +42,32 @@ questions, different metrics).
 | After hardening, **blind set** (written afterwards, scored once) | 24/30 = 80.0% | **The number to quote.** Unseen-query routing accuracy is about 80%. |
 | Per route on the 96 held-out queries | policy 94% / credit 91% / off-topic 91% recall | Misroutes mostly fail safe: off-topic and an insufficient retrieval both end in a human hand-off. |
 
-## Router promotion
+## Router promotion and deployment (done 2026-10-27)
 
-The retrained router is a **candidate**. It is evaluated through `INTENT_ROUTER_ARTIFACT` and
-has not been promoted: `mlops/intent_router/registry.py` requires a named human sign-off, and
-that stays a human decision. To promote after review:
+The hardened router (`20261027T083951`) was promoted through `mlops/intent_router/registry.py`
+after beating the previous production router on the held-out sets:
 
-```
-python -m mlops.intent_router.train_and_promote   # CI-style ephemeral promotion only
-# or, for a real promotion, stage the artifact and call promote_to_production(dir, signed_off_by="<your name>")
-```
+| | Previous production | Promoted |
+|---|---|---|
+| Blind set (n=30) | 73.3% | 80.0% |
+| Dev set (n=66) | 80.3% | 97.0% (optimistic) |
+| Recall: policy / credit / off-topic | 88% / 81% / 66% | 94% / 91% / 91% |
+
+The registry requires a named sign-off. It is recorded as the repo owner, approved in chat on
+2026-10-27 and *applied by Claude Code* -- that wording is in `signoff.json` on purpose, so the
+audit trail does not claim more than happened. The previous router is archived under
+`registry_store/archived/`, not deleted. `registry_store/` is gitignored; it reaches the Space
+through the deploy snapshot, so **promote first, then run `scripts/prepare_hf_space_deploy.sh`**.
+
+The live Space (`BhavyaBhandary/finbuddy-langgraph-agent`) runs this router and was
+verified after deploy: "Which mutual fund should I put my savings into?" now routes `off_topic`
+(it went to `credit_assessment` under the old router). It is still wrong about ~1 in 5 unseen
+queries -- e.g. "Suggest a name for my bakery" routes to `credit_assessment` and escalates safely
+with no score.
+
+Behind HF's proxy every visitor shares one socket address, so the rate limiter keys on
+`X-Forwarded-For` whenever `SPACE_ID` is set (or `TRUST_PROXY_HEADERS=1`). The first forwarded
+entry is client-controllable: this stops loops and accidents, not a determined attacker.
 
 ## What this repo did not change (production `finbuddy-project`)
 

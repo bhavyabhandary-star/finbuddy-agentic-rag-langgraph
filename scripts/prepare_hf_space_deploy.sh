@@ -19,6 +19,12 @@ set -euo pipefail
 # genuinely needed for the deployed service to work, since they already
 # exist on disk from this session's own verified runs.
 #
+# Excluded from the snapshot on purpose: ./feedback (captured user text, never deployed or
+# committed) and docs/*.pptx|*.docx (binary files HF rejects without LFS -- the first redeploy
+# after the capstone deck was added failed on exactly this). The PRODUCTION Intent Router in
+# mlops/intent_router/registry_store/ is bundled, so promote the router (human sign-off) BEFORE
+# running this, or the Space will keep serving the old one.
+#
 # Usage: ./scripts/prepare_hf_space_deploy.sh <space-name>
 #   e.g. ./scripts/prepare_hf_space_deploy.sh finbuddy-langgraph-agent
 
@@ -41,7 +47,7 @@ tar \
   --exclude='./mlruns' \
   --exclude='./mlflow.db' \
   --exclude='./data/raw_pdfs' \
-  --exclude='./.env' \
+  --exclude='./.env'   --exclude='./feedback'   --exclude='./docs/*.pptx'   --exclude='./docs/*.docx' \
   -cf - . | (cd "${DEPLOY_DIR}" && tar -xf -)
 
 echo "Bundled artifacts present in the snapshot:"

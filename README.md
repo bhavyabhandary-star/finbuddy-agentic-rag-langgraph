@@ -18,6 +18,21 @@ grounded in real RBI/DPDP PDFs, and orchestrates FinBuddy's existing production
 credit-scoring pipeline as tools — real Setu AA Feed sandbox data in, the live
 scoring API + Risk-Trend model for inference — built with LangChain + LangGraph.
 
+## Current state (2026-11)
+
+| | |
+|---|---|
+| **Live** | HF Space snapshot built from `415644a`, running the promoted Intent Router `20261027T083951` |
+| **Router accuracy on unseen queries** | **~80%** (blind set, n=30, roughly ±14 points); 97% on the dev set it was hardened against (optimistic). The old "100% on the eval harness" was a train-on-test leak and is retired. |
+| **When the router is wrong** | It fails safe: off-topic and insufficient retrieval both end in a human hand-off; a credit misroute with no signals escalates with no score |
+| **Failure behaviour** | LLM outage, timeout, invalid JSON, or an answer stating a figure not in the sources → fixed human-escalating answer with a `failure_reason`; never a 500 |
+| **Privacy / access** | PAN, Aadhaar and mobile numbers redacted before routing, the LLM and the logs; optional `X-API-Key`; per-client rate limit (30/min) |
+| **Tests** | 111 pass, 3 skip (the real-Claude tests, no billing) |
+| **Still open** | Hindi output garbled (accepted), Kannada fixed fallback, demo API open unless a key is set, caller identity unverified, scoring models trained on synthetic data, no console feedback buttons, RAGAS blocked on the dev machine |
+
+Details, before/after measurements and the full list of what is *not* solved:
+[`docs/robustness_checklist.md`](docs/robustness_checklist.md).
+
 **Read the design docs first, in this order:**
 
 1. [`kickoff_prompt.md`](kickoff_prompt.md) — role, constraints, six-layer
@@ -39,18 +54,23 @@ trained artifact, read-only.
 
 ```
 api/            FastAPI endpoint, request validation, streaming            (Layer 1)
+                + security.py (API key, rate limit), response_cache.py,
+                feedback.py (verdict capture for the retrain loop)
 agent/          LangGraph state machine: Intent Router, planning, state    (Layer 2)
 tools/          retrieve_pdf_chunks, check_sufficiency, assess_credit_profile,
                 assess_risk_trend                                          (Layer 3)
 memory/         short-term (LangGraph state); long-term explicitly deferred (Layer 4)
-guardrails/     input validation, tool policy, output validation           (Layer 5)
-observability/  tracing, evaluation hooks, cost/step logging               (Layer 6)
+guardrails/     input validation + PII redaction, tool policy, output
+                validation, runtime grounding check                        (Layer 5)
+observability/  tracing (PII-redacted), cost/token/latency accounting,
+                live /metrics                                              (Layer 6)
 mlops/          Intent Router's full train/track/registry/drift loop;
                 Risk-Trend tool's input-drift monitor (detect-only)        (Layer 7)
 
 ingestion/      PDF ingestion (Docling) → chunking → Chroma vector store;
                 Setu AA Feed (real sandbox UPI data → 8 signals)
-eval/           scenario harness + RAGAS metrics; CI gate
+eval/           held-out + blind routing sets and the CI gate; independent-judge
+                RAG eval (judge_eval.py); RAGAS (ragas_eval.py, see Status)
 tests/          pytest suite
 ui/             finbuddy_console.html -- persona-based credit-assessment +
                 policy Q&A console, deployed via GitHub Pages (see Deployment)
@@ -75,7 +95,7 @@ prompts/        every LLM-facing instruction, versioned (prompts/<name>/vN.txt);
 | `tools/` | `tools/` | Plus `guardrails/tool_policy.py` for safe-call/retry/confirmation rules |
 | `memory/` | `memory/` | Short-term only; long-term memory deliberately deferred |
 | `prompts/` | `prompts/` | Added: prompts moved out of `agent/nodes/generate.py`, versioned, hash-frozen in tests |
-| `evaluation/` | `eval/` | Held-out + blind routing sets (leak-tested), RAGAS with an independent judge, CI gate |
+| `evaluation/` | `eval/` | Held-out + blind routing sets (leak-tested), independent-judge RAG eval, CI gate |
 | `app/` | `api/`, `ui/` | FastAPI endpoint + console UI |
 | `scripts/`, `docs/`, Docker | same names | |
 | *(not in the standard list)* | `guardrails/`, `observability/`, `mlops/` | Kept: input/output/tool guardrails, tracing, Intent Router + drift monitors |
@@ -103,6 +123,13 @@ verified live by calling `/agent/run` directly against the deployed instance and
 confirming all three routes (grounded policy answer with citation, off-topic
 refusal, insufficient-context escalation) work end to end in production — not
 just locally.
+
+> **Read the RAGAS paragraph below as history.** Its figures are from three questions,
+> judged by the same Qwen model that wrote the answers, and RAGAS cannot be imported on the
+> dev machine any more (a Windows Application Control policy blocks one of its native
+> dependencies). For current RAG answer quality use `python -m eval.judge_eval` (nine
+> questions, an independent Llama judge, escalations reported rather than averaged in) --
+> results in `docs/judge_eval_results.json`.
 
 The RAGAS evaluation (`eval/ragas_eval.py`) is also real now, not a stub: it
 runs real retrieval + real generation against the ingested corpus, judged by
@@ -189,6 +216,37 @@ and -- explicitly -- what is still open. In short:
 - **Monitoring / feedback:** `GET /metrics`; router drift from user feedback and from a
   label-free confidence signal; `POST /agent/feedback` -> reviewed corrections -> retrain.
 
+### API surface
+
+| Endpoint | Purpose | Protected by key + rate limit |
+|---|---|---|
+| `GET /health` | liveness probe | no |
+| `POST /agent/run` | the agent; returns `answer`, `sources`, `route`, `failure_reason`, `guardrail_flags`, `pii_redacted`, `cache_hit`, `run_id`, ... | yes |
+| `POST /agent/run/stream` | same run as server-sent events (step names, then the answer) | yes |
+| `POST /agent/feedback` | a verdict on a `run_id` (`rating`, optional `correct_route`, `comment`) -> `feedback/feedback.jsonl`, `reviewed: false` | yes |
+| `GET /metrics` | volume, escalation rate, fixed-fallback reasons, p50/p95, cache hit rate, tokens, router drift | key only |
+
+"Protected" means: `X-API-Key` is enforced **only if** `FINBUDDY_API_KEY` is set (the public demo
+leaves it unset because the GitHub Pages console cannot keep a secret); the rate limit is always on.
+
+### The retrain -> gate -> promote loop
+
+1. Users' verdicts land in `feedback/feedback.jsonl` (gitignored, PII-redacted) with `reviewed: false`.
+2. A human reviews them and sets `reviewed: true`; only those become training data
+   (`mlops.intent_router.data.load_feedback_examples`).
+3. `python -m mlops.intent_router.train` writes a candidate; `INTENT_ROUTER_ARTIFACT=<path>`
+   evaluates or runs it **without** promoting it.
+4. It must beat the current production router on `eval/heldout_scenarios.py` and
+   `eval/blind_scenarios.py` (`python -m eval.evaluate_agent --gate`), and the held-out sets must
+   never overlap the training data (`tests/test_eval_integrity.py` fails the build if they do).
+5. A named human signs it off via `registry.promote_to_production(...)`.
+   `train_and_promote.py` is CI-only and labels itself as such.
+6. Redeploy: the deploy snapshot bundles the production registry, so a promotion only reaches
+   the Space after `scripts/prepare_hf_space_deploy.sh` + a push.
+
+The last promotion is documented in `docs/robustness_checklist.md` (router `20261027T083951`,
+blind set 73.3% -> 80.0%, off-topic recall 66% -> 91%).
+
 ## Language support
 
 `response_language` accepts `en`, `hi`, and `kn` (`agent/nodes/generate.py`'s
@@ -211,7 +269,8 @@ testing against the deployed Space's provider, not assumption:
   output broken at a deeper level: even when the model happened to land in
   correct Kannada Unicode script, the content itself was incoherent gibberish,
   not real Kannada — no retry can fix that. Kept UI-disabled ("coming soon")
-  in `ui/finbuddy_console.html` for the same reason.
+  in `ui/finbuddy_console.html` for the same reason. The fixed fallback (here and Hindi's)
+  returns no `sources`: it was not generated from the retrieved text, so it must not cite it.
 - **Tamil and Telugu are out of scope** — not in `LANGUAGE_NAMES`, no UI entry.
   An early real test of both surfaced the same wrong-script/gibberish failures,
   more severely (including stray CJK characters).
@@ -267,9 +326,17 @@ artifact/profile/token isn't present (same pattern throughout — check each
 test file's `pytest.mark.skipif` for exactly what it needs).
 
 ```bash
-pytest tests/ -v
-python -m eval.evaluate_agent --gate
+pytest tests/ -v                      # 111 pass, 3 skip when no Claude billing
+python -m eval.evaluate_agent --gate  # held-out + blind routing sets, per-route recall
+python -m eval.judge_eval             # RAG answers graded by an independent (Llama) judge
 ```
+
+Optional environment (all documented in `.env.example`): `FINBUDDY_API_KEY` (turn on key
+auth), `TRUST_PROXY_HEADERS` (automatic on HF Spaces), `LLM_PRICE_INPUT_PER_1K` /
+`LLM_PRICE_OUTPUT_PER_1K` (cost is reported as unknown until set), `RAGAS_JUDGE_MODEL`,
+`INTENT_ROUTER_ARTIFACT` (run a candidate router without promoting it), `SKIP_WARMUP=1`
+(tests). On Windows, run the project venv from PowerShell: some native DLLs
+(scikit-learn, tiktoken) are blocked by Application Control when launched from other shells.
 
 ## Deployment
 
@@ -281,7 +348,12 @@ Two independent deployment targets:
   including the gitignored real artifacts the dev repo doesn't track
   (the trained Intent Router model, `chroma_data/`, the Risk-Trend artifact,
   the Setu profile) — it never touches your HF credentials, so the printed
-  `git push` command is yours to run.
+  `git push` command is yours to run. It deliberately leaves out `feedback/` (user text)
+  and `docs/*.pptx|*.docx` (binaries HF rejects without LFS). **Promote the router first**:
+  the snapshot carries whatever is in `mlops/intent_router/registry_store/production/`.
+  Behind HF's proxy the rate limiter keys on `X-Forwarded-For` (automatic when `SPACE_ID`
+  is set); a Space's variables (`LLM_PROVIDER`, `HF_TOKEN`, optionally `FINBUDDY_API_KEY`)
+  are set in its Settings, never in the snapshot.
 - **Console UI** — GitHub Pages, auto-deployed by
   `.github/workflows/deploy-pages.yml` on any push touching `ui/**`. See the
   Status section above for why this is a separate deployment target from the
