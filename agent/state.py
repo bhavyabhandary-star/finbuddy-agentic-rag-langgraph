@@ -49,6 +49,15 @@ class AgentState(TypedDict, total=False):
     escalate_to_human: bool
     disclaimer: str | None  # fixed, code-appended text for credit_assessment answers only
 
+    # live Account Aggregator path (agent/nodes/aa.py). The AA handle ("<mobile>@<aa>") is used once to create the
+    # consent and is never logged; the raw bank payload is never held in state -- only the 8 signals continue.
+    aa_mode: bool
+    aa_handle: str | None
+    consent_id: str | None
+    consent_url: str | None
+    consent_status: str | None  # PENDING | ACTIVE | REJECTED | REVOKED | EXPIRED | FAILED
+    aa_error: str | None
+
     # guardrail / observability flags
     guardrail_flags: list[str]
     # Why the answer is a fixed escalation rather than a generated one:

@@ -115,6 +115,37 @@ GATE_MIN_ROUTING_ACCURACY = 0.75
 GATE_MIN_PER_ROUTE_RECALL = 0.60
 
 
+# ---- Real-data readiness (mlops/real_data) --------------------------------------
+# Where real Setu AA profiles and their observed outcomes live. Both are gitignored: they are
+# personal financial data and must never be committed.
+REAL_PROFILES_PATH = os.environ.get("SETU_CACHED_PROFILE_PATH", "./data/setu_real_profiles.jsonl")
+REAL_OUTCOMES_PATH = os.environ.get("REAL_OUTCOMES_PATH", "./data/real_outcomes.jsonl")
+REAL_CONSENT_REGISTER_PATH = os.environ.get("REAL_CONSENT_REGISTER_PATH", "./data/real_consent_register.jsonl")
+REAL_TRAINING_TABLE_PATH = Path("./data/real_training_table.csv")
+# Minimum real data before a model MAY be retrained on it (mlops/real_data/readiness.py).
+# F-001 (and F-003, whose SHAP explainer is built on F-001): with 1,000 labelled profiles of which
+# at least 100 are the minority outcome, the AUC of a held-out 20% split has a standard error of
+# roughly 0.03 -- tight enough to tell a real improvement from noise. Fewer and the "AUC" is a guess.
+REAL_MIN_LABELLED_F001 = 1000
+REAL_MIN_MINORITY_CLASS = 100
+# F-006 (Isolation Forest, unsupervised): no labels needed, but its contamination / threshold is
+# only meaningful over a population.
+REAL_MIN_PROFILES_F006 = 500
+# Risk-Trend: needs users observed in two consecutive windows with an observed trend label.
+REAL_MIN_TREND_USERS = 1000
+# A profile outside the synthetic training data's 1st-99th percentile band on a signal counts as
+# "shifted" for that signal.
+SHIFT_BAND_LOW_PCT = 1
+SHIFT_BAND_HIGH_PCT = 99
+
+
+# ---- Live Account Aggregator flow (agent/nodes/aa.py, memory/consent_store.py) -----
+AA_CONSENT_DB_PATH = Path("./data/aa_consents.sqlite3")  # gitignored (*.sqlite3); holds consent ids + a hash, no bank data
+AA_CONSENT_DURATION_MONTHS = 12
+AA_CONSENT_TTL_SECONDS = 24 * 60 * 60  # an unapproved consent older than this is abandoned and re-created
+AA_DATA_FETCH_TIMEOUT_SECONDS = 45  # the request thread waits at most this long for Setu to deliver data
+
+
 # ---- Call-time env getters (secrets: no defaults) ---------------------------
 def llm_provider_name() -> str:
     return os.environ.get("LLM_PROVIDER", DEFAULT_LLM_PROVIDER).lower()
@@ -138,6 +169,11 @@ def ragas_judge_model() -> str:
 
 def ollama_model() -> str:
     return os.environ.get("OLLAMA_MODEL", DEFAULT_OLLAMA_MODEL)
+
+
+def setu_webhook_secret() -> str | None:
+    """SETU_WEBHOOK_SECRET. Unset = the consent webhook endpoint does not exist (404). A secret, so no default."""
+    return os.environ.get("SETU_WEBHOOK_SECRET") or None
 
 
 def api_key() -> str | None:

@@ -13,6 +13,7 @@ controls live (each one documented in docs/robustness_checklist.md):
 """
 from __future__ import annotations
 
+import hmac
 import logging
 import os
 import time
@@ -21,7 +22,7 @@ from contextlib import asynccontextmanager
 from typing import Literal
 
 from dotenv import load_dotenv
-from fastapi import Depends, FastAPI, HTTPException
+from fastapi import Body, Depends, FastAPI, Header, HTTPException
 from fastapi.concurrency import iterate_in_threadpool
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
@@ -39,7 +40,9 @@ from api.response_cache import ResponseCache
 from api.security import enforce_rate_limit, require_api_key
 from config import settings
 from guardrails.input_guardrails import redact_pii
+from agent.nodes.aa import _normalise_status, default_client
 from ingestion.setu_feed import load_cached_real_profile
+from memory.consent_store import default_store
 from mlops.intent_router import drift_monitor
 from observability.metrics import metrics
 from observability.tracing import trace_run
@@ -89,6 +92,8 @@ app.add_middleware(
 )
 
 _cache = ResponseCache()
+# Test hook / override point for the live Account Aggregator path (None = real Setu client + default SQLite store).
+_AA: dict = {"client": None, "store": None}
 _recent_runs = RecentRuns()
 _PROTECTED = [Depends(require_api_key), Depends(enforce_rate_limit)]
 
@@ -141,6 +146,12 @@ class AgentRunRequest(BaseModel):
     # Feed" pipeline stage, see ingestion/setu_feed.py. Real sandbox data,
     # not synthesized: consent-based 12-mo UPI pull, normalized to 8 signals.
     use_setu_feed: bool = False
+    # Live Account Aggregator data: a 10-digit mobile ("9999999999": Setu then picks the AA) or "<mobile>@<AA handle>"
+    # (e.g. 9999999999@finvu). As of 2026-11 Setu's sandbox REJECTS "@onemoney" with "Invalid customer address format"
+    # (it accepted it earlier), so prefer the mobile alone. Starts (or resumes) a
+    # consent flow for THIS session_id: the first call returns a consent_url for the person to approve; ask again
+    # with the same session_id afterwards. The handle is used once and stored only as a hash.
+    aa_handle: str | None = Field(default=None, pattern=r"^\d{10}(@[A-Za-z0-9._-]{2,30})?$")
 
 
 class AgentRunResponse(BaseModel):
@@ -168,6 +179,10 @@ class AgentRunResponse(BaseModel):
     guardrail_flags: list[str] = []
     pii_redacted: list[str] = []  # kinds removed from the query before it was processed
     cache_hit: bool = False
+    # Live Account Aggregator flow
+    consent_status: str | None = None  # PENDING | ACTIVE | REJECTED | REVOKED | EXPIRED | FAILED
+    consent_url: str | None = None  # the person opens this to approve; present while PENDING
+    consent_id: str | None = None
 
 
 @app.get("/health")
@@ -196,7 +211,7 @@ def _resolve_credit_signals(request: "AgentRunRequest") -> dict:
 def _cacheable_request(request: AgentRunRequest) -> bool:
     """A policy answer depends only on (question, language). Anything carrying the caller's
     own credit data is personal and is never served from, or stored in, the cache."""
-    return not (request.use_setu_feed or request.credit_signals or request.risk_trend_delta_features)
+    return not (request.use_setu_feed or request.credit_signals or request.risk_trend_delta_features or request.aa_handle)
 
 
 def _initial_state(request: AgentRunRequest, session_id: str, query: str) -> dict:
@@ -206,6 +221,8 @@ def _initial_state(request: AgentRunRequest, session_id: str, query: str) -> dic
         "response_language": request.response_language,
         "credit_signals": _resolve_credit_signals(request),
         "risk_trend_delta_features": request.risk_trend_delta_features,
+        "aa_mode": bool(request.aa_handle),
+        "aa_handle": request.aa_handle,
     }
 
 
@@ -238,6 +255,9 @@ def _response_from_result(result: dict, run_id: str, pii_kinds: list[str]) -> Ag
         failure_reason=result.get("failure_reason"),
         guardrail_flags=result.get("guardrail_flags", []),
         pii_redacted=pii_kinds,
+        consent_status=result.get("consent_status"),
+        consent_url=result.get("consent_url"),
+        consent_id=result.get("consent_id"),
     )
 
 
@@ -280,7 +300,7 @@ def run_agent(request: AgentRunRequest) -> AgentRunResponse:
     with trace_run(run_id=run_id) as tracer:
         tracer.log_step("input_guardrail", decision="query screened", session_id=session_id, pii_redacted=pii_kinds)
         try:
-            graph = build_graph(tracer=tracer, provider=_default_provider())
+            graph = build_graph(tracer=tracer, provider=_default_provider(), aa_client=_AA["client"], consent_store=_AA["store"])
             result = graph.invoke(_initial_state(request, session_id, query))
             response = _response_from_result(result, run_id, pii_kinds)
         except Exception:  # noqa: BLE001 -- fail closed: a broken run escalates, it does not 500
@@ -314,7 +334,7 @@ async def run_agent_stream(request: AgentRunRequest):
         with trace_run(run_id=run_id) as tracer:
             tracer.log_step("input_guardrail", decision="query screened", session_id=session_id, pii_redacted=pii_kinds)
             try:
-                graph = build_graph(tracer=tracer, provider=_default_provider())
+                graph = build_graph(tracer=tracer, provider=_default_provider(), aa_client=_AA["client"], consent_store=_AA["store"])
                 async for step_output in iterate_in_threadpool(graph.stream(_initial_state(request, session_id, query))):
                     node_name = next(iter(step_output))
                     yield {"event": "step", "data": node_name}
@@ -329,6 +349,38 @@ async def run_agent_stream(request: AgentRunRequest):
             _finish(_response_from_result(final_state, run_id, pii_kinds), request, query, started, cost_summary)
 
     return EventSourceResponse(event_generator())
+
+
+def _webhook_consent_id(payload: dict) -> str | None:
+    """Setu's notification shape is not something we have verified, so accept the plausible spellings. The body is
+    used only to find WHICH consent to re-check, never as the source of its status."""
+    data = payload.get("data") if isinstance(payload.get("data"), dict) else {}
+    for candidate in (payload.get("consentId"), payload.get("consent_id"), data.get("consentId"), data.get("id"), payload.get("id")):
+        if isinstance(candidate, str) and candidate:
+            return candidate
+    return None
+
+
+@app.post("/webhooks/setu/consent")
+def setu_consent_webhook(payload: dict = Body(default={}), x_webhook_secret: str = Header(default="")) -> dict:
+    """Setu tells us a consent changed. The endpoint exists only when SETU_WEBHOOK_SECRET is set, requires it, and --
+    because a forged body must not be able to approve a consent -- re-reads the real status from Setu before updating
+    anything. Worst case for a forgery is one redundant status lookup."""
+    secret = settings.setu_webhook_secret()
+    if secret is None:
+        raise HTTPException(status_code=404, detail="Not found.")
+    if not hmac.compare_digest(x_webhook_secret.encode("utf-8"), secret.encode("utf-8")):
+        raise HTTPException(status_code=401, detail="Bad webhook secret.")
+    consent_id = _webhook_consent_id(payload)
+    store = _AA["store"] or default_store()
+    if consent_id is None or store.find_by_consent(consent_id) is None:
+        return {"status": "ignored"}
+    client = _AA["client"] or default_client()
+    if client is None:
+        raise HTTPException(status_code=503, detail="Account Aggregator credentials are not configured.")
+    status = _normalise_status(client.get_consent_status(consent_id).get("status"))
+    store.update_status(consent_id, status)
+    return {"status": "updated", "consent_status": status}
 
 
 @app.post("/agent/feedback", dependencies=_PROTECTED)

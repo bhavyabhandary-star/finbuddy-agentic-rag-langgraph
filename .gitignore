@@ -33,3 +33,7 @@ traces/
 
 # Captured user feedback (api/feedback.py) -- may contain user text; never commit
 feedback/
+
+# Real personal data: never commit (profiles, outcomes, consent register, joined training table)
+data/real_*.jsonl
+data/real_*.csv

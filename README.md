@@ -247,6 +247,38 @@ leaves it unset because the GitHub Pages console cannot keep a secret); the rate
 The last promotion is documented in `docs/robustness_checklist.md` (router `20261027T083951`,
 blind set 73.3% -> 80.0%, off-topic recall 66% -> 91%).
 
+## Real-data readiness
+
+The credit models this agent calls (F-001 score, F-003 SHAP explainer, F-006 anomaly, Risk-Trend) were trained on
+**synthetic** data, and production FinBuddy's own generator says they must be retrained on real, consented Setu AA data
+before any real lending decision relies on them. That has **not** happened, and `mlops/real_data/` exists so the repo can say
+exactly why, and refuse to pretend otherwise:
+
+```bash
+python -m mlops.real_data.readiness   # per-model verdict: BLOCKED / ELIGIBLE, and what is missing
+python -m mlops.real_data.shift       # where real profiles fall vs the synthetic training data
+python -m mlops.real_data.collect --vua <mobile>   # pull one consented profile + write the consent register
+```
+
+Today: 1 profile, and it is Setu **sandbox** (mock accounts), with 0 repayment outcomes, so all four models are BLOCKED.
+That profile is outside the synthetic training range on 3 of 8 signals (its average transaction is about 14x the
+synthetic 99th percentile). Full status, thresholds and the path to real data: [`docs/real_data_readiness.md`](docs/real_data_readiness.md).
+
+## Live Account Aggregator flow
+
+`POST /agent/run` accepts an `aa_handle` (a 10-digit mobile, or `<mobile>@<AA handle>` such as `9999999999@finvu`; Setu's sandbox no longer accepts `@onemoney`). For a credit question the
+graph then runs **consent, pause, fetch, normalise, score** instead of reading a cached profile:
+
+1. First call returns `consent_status: PENDING` and a `consent_url`. The person opens it and approves; nothing is fetched before that.
+2. Call again with the same `session_id`. If the consent is now ACTIVE the data is fetched, reduced to the 8 signals, and scored by the
+   existing credit path. Declined, expired or unavailable ends in a hand-off with no score.
+
+Raw bank data is never put in graph state, traces, or an LLM prompt. The public demo has no `SETU_*` credentials, so there this path
+fails safe with a hand-off; to run it for real you need your own Setu sandbox credentials in `.env` and a human to approve the
+consent. Optional `POST /webhooks/setu/consent` (enabled only when `SETU_WEBHOOK_SECRET` is set) lets Setu notify instead of waiting
+for the next request. Sandbox data is Setu's mock bank accounts: it proves the flow, not borrower behaviour (see Real-data readiness).
+Design and tests: `docs/langgraph_state_machine.md`, `tests/test_aa_flow.py`.
+
 ## Language support
 
 `response_language` accepts `en`, `hi`, and `kn` (`agent/nodes/generate.py`'s

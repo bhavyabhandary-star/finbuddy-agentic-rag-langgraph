@@ -195,12 +195,22 @@ class SetuAAFeedClient:
     def get_data_session(self, session_id: str) -> dict[str, Any]:
         return self._request("GET", f"/v2/sessions/{session_id}")
 
-    def wait_for_data_session(self, session_id: str, poll_seconds: int = 5, timeout_seconds: int = 300) -> dict[str, Any]:
+    def wait_for_data_session(self, session_id: str, poll_seconds: int = 5, timeout_seconds: int = 300, log=None) -> dict[str, Any]:
         deadline = time.monotonic() + timeout_seconds
         while time.monotonic() < deadline:
             session = self.get_data_session(session_id)
-            if session.get("status") == "COMPLETED":
+            state = session.get("status")
+            if log:
+                log(f"  data session {state}")
+            if state in ("COMPLETED", "PARTIAL"):  # PARTIAL: some accounts delivered, others (e.g. the FAILURE test accounts) did not
                 return session
+            if state in ("FAILED", "EXPIRED"):
+                # Setu marks the whole session FAILED when any one account times out (the FAILURE test accounts do),
+                # even though the others were delivered; only give up when nothing usable came back.
+                if any((a.get("FIstatus") or a.get("status")) in ("READY", "DELIVERED")
+                       for f in session.get("fips") or [] for a in f.get("accounts", [])):
+                    return session
+                raise SetuAAError(f"Data session {session_id} ended {state} with no delivered accounts", session)
             time.sleep(poll_seconds)
         raise TimeoutError(f"Data session {session_id} did not complete within {timeout_seconds}s")
 
@@ -302,27 +312,45 @@ def normalize_session_response(session: dict) -> list[dict]:
     return profiles
 
 
-def pull_fresh_profile(vua: str, months: int = 12) -> dict:
+def pull_fresh_profile(vua: str, months: int = 12, consent_id: str | None = None, session_id: str | None = None) -> dict:
     """End-to-end fresh pull. BLOCKS on human consent approval — prints the
     URL and polls; there is no way around that step (see module docstring).
     Appends the result to CACHED_PROFILE_PATH so load_cached_real_profile()
     picks it up afterward.
+
+    With `consent_id`, resumes an already-approved consent (for example after the
+    earlier run was interrupted) instead of creating a new one.
     """
     client = SetuAAFeedClient()
     now = datetime.now(timezone.utc)
     data_from = now - timedelta(days=30 * months)
     iso = lambda dt: dt.strftime("%Y-%m-%dT%H:%M:%SZ")  # noqa: E731
 
-    consent = client.create_consent(vua=vua, duration_months=months, data_range_from=iso(data_from), data_range_to=iso(now))
-    print(f"Open this URL and approve via the mock FIP webview:\n  {consent['url']}")
-    print("Waiting for approval (polling every 5s, 10 min timeout)...")
+    if consent_id:
+        consent = {"id": consent_id}
+        print(f"Resuming approved consent {consent_id}...")
+    else:
+        consent = client.create_consent(vua=vua, duration_months=months, data_range_from=iso(data_from), data_range_to=iso(now))
+        print(f"Open this URL and approve via the mock FIP webview:\n  {consent['url']}")
+        print("Waiting for approval (polling every 5s, 10 min timeout)...")
 
     status = client.wait_for_consent(consent["id"])
     if status.get("status") != "ACTIVE":
         raise SetuAAError(f"Consent did not become ACTIVE (status={status.get('status')})")
 
-    session = client.create_data_session(consent["id"], iso(data_from), iso(now))
-    completed = client.wait_for_data_session(session["id"])
+    if consent_id:  # a session must sit inside the range the consent was created with
+        granted = (status.get("detail") or {}).get("dataRange") or {}
+        if not (granted.get("from") and granted.get("to")):
+            raise SetuAAError("Approved consent has no detail.dataRange; refusing to guess a window (a ONETIME consent allows one fetch)")
+        data_from_s, data_to_s = granted["from"], granted["to"]
+    else:
+        data_from_s, data_to_s = iso(data_from), iso(now)
+    if session_id:
+        session = {"id": session_id}
+    else:
+        session = client.create_data_session(consent["id"], data_from_s, data_to_s)
+    print(f"Data session {session['id']} (keep this: a ONETIME consent allows one fetch, and `--session-id` resumes it)")
+    completed = client.wait_for_data_session(session["id"], log=print)
     profiles = normalize_session_response(completed)
     if not profiles:
         raise SetuAAError("No DELIVERED deposit accounts found in the session response")

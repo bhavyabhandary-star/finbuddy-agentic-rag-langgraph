@@ -11,6 +11,7 @@ from __future__ import annotations
 
 from langgraph.graph import END, StateGraph
 
+from agent.nodes.aa import aa_consent_node, aa_fetch_node, aa_pending_node, error_message as aa_error_message
 from agent.nodes.credit_assessment import credit_assessment_node
 from agent.nodes.generate import LLMProvider, generate_node
 from agent.nodes.retrieve import retrieve_node
@@ -47,7 +48,10 @@ def _escalate_node(state: AgentState, tracer: RunTracer | None = None) -> AgentS
     """
     language = state.get("response_language") or "en"
     credit_assessment = state.get("credit_assessment")
-    if credit_assessment is not None and credit_assessment.tool_error:
+    if state.get("aa_error"):
+        message = aa_error_message(language)
+        reason = f"account aggregator path failed: {state['aa_error']}"
+    elif credit_assessment is not None and credit_assessment.tool_error:
         message = _TOOL_ERROR_ESCALATION_MESSAGE.get(language, _TOOL_ERROR_ESCALATION_MESSAGE["en"])
         reason = f"credit-assessment tool failed: {credit_assessment.tool_error}"
     else:
@@ -67,9 +71,24 @@ def _escalate_node(state: AgentState, tracer: RunTracer | None = None) -> AgentS
 
 
 def _route_decision(state: AgentState) -> str:
+    if state["route"] == "credit_assessment" and state.get("aa_mode"):
+        return "aa_consent"  # live Account Aggregator data: consent first, never a score from data we did not get
     return {"policy": "retrieve", "credit_assessment": "credit_assessment", "off_topic": "escalate"}[
         state["route"]
     ]
+
+
+def _after_consent(state: AgentState) -> str:
+    status = state.get("consent_status")
+    if status == "ACTIVE":
+        return "aa_fetch"
+    if status == "PENDING":
+        return "aa_pending"
+    return "escalate"  # rejected, revoked, expired, not configured, gateway error
+
+
+def _after_fetch(state: AgentState) -> str:
+    return "escalate" if state.get("aa_error") else "credit_assessment"
 
 
 def _should_continue_retrieval(state: AgentState) -> str:
@@ -96,7 +115,7 @@ def _should_generate_from_credit_assessment(state: AgentState) -> str:
     return "generate"
 
 
-def build_graph(tracer: RunTracer | None = None, provider: LLMProvider | None = None):
+def build_graph(tracer: RunTracer | None = None, provider: LLMProvider | None = None, aa_client=None, consent_store=None):
     """provider is injectable (defaults to Claude inside generate_node when
     None) so callers can substitute HuggingFaceProvider/OllamaProvider without
     monkeypatching — needed for real end-to-end verification while Claude API
@@ -114,11 +133,20 @@ def build_graph(tracer: RunTracer | None = None, provider: LLMProvider | None = 
     )
     graph.add_node("generate", lambda s: generate_node(s, provider=provider, tracer=tracer))
     graph.add_node("escalate", lambda s: _escalate_node(s, tracer))
+    graph.add_node("aa_consent", lambda s: aa_consent_node(s, client=aa_client, store=consent_store, tracer=tracer))
+    graph.add_node("aa_fetch", lambda s: aa_fetch_node(s, client=aa_client, tracer=tracer))
+    graph.add_node("aa_pending", lambda s: aa_pending_node(s, tracer))
 
     graph.set_entry_point("route")
     graph.add_conditional_edges(
-        "route", _route_decision, {"retrieve": "retrieve", "credit_assessment": "credit_assessment", "escalate": "escalate"}
+        "route",
+        _route_decision,
+        {"retrieve": "retrieve", "credit_assessment": "credit_assessment", "escalate": "escalate", "aa_consent": "aa_consent"},
     )
+    graph.add_conditional_edges(
+        "aa_consent", _after_consent, {"aa_fetch": "aa_fetch", "aa_pending": "aa_pending", "escalate": "escalate"}
+    )
+    graph.add_conditional_edges("aa_fetch", _after_fetch, {"credit_assessment": "credit_assessment", "escalate": "escalate"})
     graph.add_conditional_edges(
         "retrieve", _should_continue_retrieval, {"retrieve": "retrieve", "generate": "generate", "escalate": "escalate"}
     )
@@ -127,5 +155,6 @@ def build_graph(tracer: RunTracer | None = None, provider: LLMProvider | None = 
     )
     graph.add_edge("generate", END)
     graph.add_edge("escalate", END)
+    graph.add_edge("aa_pending", END)
 
     return graph.compile()
