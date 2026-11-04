@@ -48,7 +48,17 @@ tar \
   --exclude='./mlflow.db' \
   --exclude='./data/raw_pdfs' \
   --exclude='./.env'   --exclude='./feedback'   --exclude='./docs/*.pptx'   --exclude='./docs/*.docx' \
+  --exclude='./data/aa_consents.sqlite3'   --exclude='./data/real_*' \
   -cf - . | (cd "${DEPLOY_DIR}" && tar -xf -)
+
+# data/aa_consents.sqlite3 (consent ids/urls + a mobile hash) and data/real_* (the consent register, outcomes, training
+# table) are excluded above: they must never reach a public Space. The cached Setu profile file is append-only and the demo
+# reads its LAST line, so later live pulls would silently change the demo profile. Ship only its first line (the original
+# demo profile) so the deployed demo stays what the deck and run-sheet describe.
+if [ -f "${DEPLOY_DIR}/data/setu_real_profiles.jsonl" ]; then
+  head -n 1 "${DEPLOY_DIR}/data/setu_real_profiles.jsonl" > "${DEPLOY_DIR}/data/setu_real_profiles.jsonl.tmp"
+  mv "${DEPLOY_DIR}/data/setu_real_profiles.jsonl.tmp" "${DEPLOY_DIR}/data/setu_real_profiles.jsonl"
+fi
 
 echo "Bundled artifacts present in the snapshot:"
 for f in chroma_data mlops/risk_trend_monitor/artifacts/risk_trend_logreg.joblib \
