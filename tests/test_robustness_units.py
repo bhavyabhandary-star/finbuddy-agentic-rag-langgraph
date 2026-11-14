@@ -93,6 +93,37 @@ def test_grounding_rejects_an_answer_unrelated_to_the_context():
     assert not result.grounded
 
 
+DLG_ILLUSTRATION = (
+    "Assume the RE earmarks a portfolio of ₹40 crore under a DLG arrangement. The ceiling for DLG cover is "
+    "five per cent of the portfolio, i.e. ₹2 crore."
+)
+
+
+def test_grounding_rejects_a_figure_with_the_wrong_unit_even_when_the_digit_is_in_the_source():
+    # Real miss caught on the 2026-11-14 demo recording: "5" is in the source, "5 lakhs" is not.
+    answer = (
+        "The cap on Default Loss Guarantee cover for a loan is ₹5 lakhs, which is 5% of the total amount "
+        "disbursed from the loan portfolio."
+    )
+    result = check_grounding(answer, [DLG_CHUNK], query="How much can a guarantor cover?")
+    assert not result.grounded and "5 lakh" in result.ungrounded_numbers
+
+
+def test_grounding_still_passes_the_correct_percentage_answer():
+    answer = "The cap on DLG cover is 5 per cent of the total amount disbursed from the loan portfolio."
+    assert check_grounding(answer, [DLG_CHUNK], query="How much can a guarantor cover?").grounded
+
+
+def test_grounding_passes_units_that_the_source_really_states():
+    answer = "For a ₹40 crore portfolio the DLG cover is capped at 5%, which is ₹2 crore."
+    result = check_grounding(answer, [DLG_CHUNK, DLG_ILLUSTRATION], query="Give an example of the DLG cap")
+    assert result.grounded, result.reason
+
+
+def test_grounding_treats_percent_spellings_alike():
+    assert check_grounding("The cover is capped at 5 percent of the amount disbursed from the loan portfolio.", [DLG_CHUNK]).grounded
+
+
 def test_grounding_allows_numbers_the_user_themselves_mentioned():
     result = check_grounding("Yes, a 30 day period applies to the loan portfolio.", ["period applies to the loan portfolio"], query="is it 30 days?")
     assert result.grounded

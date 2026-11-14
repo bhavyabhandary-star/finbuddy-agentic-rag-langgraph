@@ -39,7 +39,7 @@ from api.feedback import FeedbackRequest, RecentRun, RecentRuns, append_feedback
 from api.response_cache import ResponseCache
 from api.security import enforce_rate_limit, require_api_key
 from config import settings
-from guardrails.input_guardrails import redact_pii
+from guardrails.input_guardrails import redact_pii, sanitize_retrieved_text
 from agent.nodes.aa import _normalise_status, default_client
 from ingestion.setu_feed import load_cached_real_profile
 from memory.consent_store import default_store
@@ -154,6 +154,15 @@ class AgentRunRequest(BaseModel):
     aa_handle: str | None = Field(default=None, pattern=r"^\d{10}(@[A-Za-z0-9._-]{2,30})?$")
 
 
+class EvidenceItem(BaseModel):
+    """One retrieved passage, shown so a reader can see what the answer was built from (the R in RAG)."""
+
+    source: str
+    page: int | None = None
+    score: float
+    text: str  # a short excerpt, whitespace-normalised and injection-sanitised
+
+
 class AgentRunResponse(BaseModel):
     answer: str
     sources: list[str]
@@ -179,6 +188,10 @@ class AgentRunResponse(BaseModel):
     guardrail_flags: list[str] = []
     pii_redacted: list[str] = []  # kinds removed from the query before it was processed
     cache_hit: bool = False
+    # RAG trace (policy route only): the passages retrieved for this question, and whether the finished answer passed the
+    # runtime grounding check ("passed" | "rejected" | None when it does not apply).
+    evidence: list[EvidenceItem] = []
+    grounding: str | None = None
     # Live Account Aggregator flow
     consent_status: str | None = None  # PENDING | ACTIVE | REJECTED | REVOKED | EXPIRED | FAILED
     consent_url: str | None = None  # the person opens this to approve; present while PENDING
@@ -238,8 +251,27 @@ def _internal_error_response(request: AgentRunRequest, run_id: str, pii_kinds: l
     )
 
 
+_EVIDENCE_MAX_ITEMS = 2
+_EVIDENCE_MAX_CHARS = 260
+
+
+def _evidence_from_result(result: dict) -> list[EvidenceItem]:
+    """The top retrieved passages for a policy answer, as short readable excerpts. Public regulatory text only."""
+    if result.get("route") != "policy":
+        return []
+    items: list[EvidenceItem] = []
+    for chunk in (result.get("retrieved_chunks") or [])[:_EVIDENCE_MAX_ITEMS]:
+        text = " ".join(sanitize_retrieved_text(chunk.text).split())
+        if len(text) > _EVIDENCE_MAX_CHARS:
+            text = text[:_EVIDENCE_MAX_CHARS].rsplit(" ", 1)[0] + " ..."
+        items.append(EvidenceItem(source=chunk.source, page=chunk.page, score=round(float(chunk.score), 3), text=text))
+    return items
+
+
 def _response_from_result(result: dict, run_id: str, pii_kinds: list[str]) -> AgentRunResponse:
     return AgentRunResponse(
+        evidence=_evidence_from_result(result),
+        grounding=result.get("grounding"),
         answer=result.get("answer", ""),
         sources=result.get("sources", []),
         confidence=result.get("confidence", 0.0),

@@ -128,6 +128,50 @@ def test_a_grounded_answer_passes_and_cites_its_source(client, monkeypatch):
     assert body["sources"] == ["RBI_Digital_Lending_Directions_2025.pdf"]
 
 
+WRONG_UNIT = json.dumps(
+    {"answer": "The cap on Default Loss Guarantee cover for a loan is ₹5 lakhs, which is 5% of the total amount "
+               "disbursed from the loan portfolio.",
+     "confidence": 0.9, "escalate_to_human": False}
+)
+
+
+def test_the_recorded_wrong_unit_answer_is_refused_end_to_end(client, monkeypatch):
+    # The 2026-11-14 demo recording served this verbatim: the 5 is in the source, "lakhs" is not.
+    use_provider(monkeypatch, WRONG_UNIT)
+    body = run(client, "How much can a guarantor cover?").json()
+    assert body["escalate_to_human"] and body["failure_reason"] == "ungrounded_answer"
+    assert "lakh" not in body["answer"].lower() and body["sources"] == []
+    assert body["grounding"] == "rejected"
+
+
+def test_a_policy_answer_returns_the_passages_it_was_built_from_and_the_check_result(client, monkeypatch):
+    use_provider(monkeypatch, GOOD)
+    body = run(client).json()
+    assert body["grounding"] == "passed"
+    assert len(body["evidence"]) == 1
+    item = body["evidence"][0]
+    assert item["source"] == "RBI_Digital_Lending_Directions_2025.pdf" and item["score"] == 0.99
+    assert "five per cent" in item["text"]
+
+
+def test_evidence_is_empty_off_the_policy_route(client, monkeypatch):
+    use_provider(monkeypatch, GOOD)
+    monkeypatch.setattr(route_module, "classify_intent", lambda q: ("off_topic", 0.9))
+    body = run(client, "recipe for butter chicken").json()
+    assert body["evidence"] == [] and body["grounding"] is None
+
+
+def test_long_passages_are_cut_to_a_short_excerpt(client, monkeypatch):
+    long_chunk = DLG_CHUNK.model_copy(update={"text": "Cap on DLG cover. " + "word " * 200})
+    monkeypatch.setattr(
+        retrieve_module, "retrieve_pdf_chunks",
+        lambda query, store, top_k=5: RetrievalResult(chunks=[long_chunk], top_score=0.9, sufficient=True),
+    )
+    use_provider(monkeypatch, json.dumps({"answer": "Cap on DLG cover.", "confidence": 0.9, "escalate_to_human": False}))
+    text = run(client).json()["evidence"][0]["text"]
+    assert len(text) <= 330 and text.endswith("...")
+
+
 def test_an_unexpected_exception_in_the_graph_still_returns_a_clean_escalation(client, monkeypatch):
     use_provider(monkeypatch, GOOD)
 

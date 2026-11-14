@@ -75,3 +75,18 @@ Read-only here. Findings for that repo: scoring data is synthetic and its labels
 of the same features (reported AUCs describe the generator); the risk-trend generator adds label
 noise so AUC lands near the target; scoring and RAG services are open by design (`CORS *`,
 documented); no live traffic exists, so canary and drift reports run on held-out / synthetic data.
+
+## Grounding miss found on a demo recording, and the fix (2026-11-14)
+
+While recording the backup demo, the console answered "How much can a guarantor cover?" with "the cap ... is ₹5 lakhs, which is 5% of
+the total amount". The RBI Directions say five per cent of the amount disbursed and give no lakh figure. The runtime grounding check
+let it through because it compared bare digits: the 5 is in the source, so "5 lakhs" passed.
+
+Fix (`guardrails/grounding.py`): a figure that carries a unit (percent, lakh, crore, million, billion, thousand) must now appear in the
+retrieved text **with that same unit**. Spelled-out numbers are normalised, so "five per cent" in a source still matches "5%" in an
+answer; RBI's own worked example (₹40 crore, ₹2 crore) still passes. The exact recorded answer is a regression test, both on the check
+and through the API. Still lexical: it does not catch a wrong claim that reuses source words and units.
+
+The console's "How did I answer this?" trace now depicts the RAG steps for a policy answer: the question, the passages retrieved (the
+top two, as short excerpts with their source files), and the result of the answer check. The API returns them as `evidence` and
+`grounding` on `/agent/run`; both are empty off the policy route.

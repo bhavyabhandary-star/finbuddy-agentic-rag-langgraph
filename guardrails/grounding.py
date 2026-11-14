@@ -33,6 +33,12 @@ _NUMBER_WORDS = {  # spelled-out numbers in a source count as the digit form
 }
 
 
+# A bare digit check passes "5 lakhs" whenever the source says "5%": the 5 is in the text, the unit is wrong. A figure that
+# carries a magnitude or percentage unit must therefore appear with that same unit in the retrieved text.
+_QUANTITY_PATTERN = re.compile(r"(\d[\d,]*(?:\.\d+)?)\s*(%|per\s*cent|percent|lakhs?|crores?|millions?|billions?|thousands?)")
+_NUMBER_WORD_PATTERN = re.compile(r"\b(" + "|".join(_NUMBER_WORDS) + r")\b")
+
+
 @dataclass
 class GroundingResult:
     grounded: bool
@@ -46,6 +52,20 @@ def _numbers(text: str) -> set[str]:
     lowered = text.lower()
     found |= {digit for word, digit in _NUMBER_WORDS.items() if re.search(rf"\b{word}\b", lowered)}
     return found
+
+
+def _unit(raw: str) -> str:
+    raw = re.sub(r"\s+", "", raw)
+    if raw == "%" or raw.startswith("per"):  # "%", "percent", "per cent"
+        return "percent"
+    return raw.rstrip("s")  # lakhs -> lakh, crores -> crore
+
+
+def _quantities(text: str) -> set[tuple[str, str]]:
+    """(number, unit) pairs, e.g. {("5", "percent"), ("2", "crore")}. Spelled-out numbers are turned into digits first so
+    "five per cent" in a source matches "5%" in an answer."""
+    lowered = _NUMBER_WORD_PATTERN.sub(lambda m: _NUMBER_WORDS[m.group(1)], text.lower())
+    return {(num.replace(",", "").rstrip("."), _unit(unit)) for num, unit in _QUANTITY_PATTERN.findall(lowered)}
 
 
 def _stem(word: str) -> str:
@@ -63,6 +83,13 @@ def check_grounding(answer: str, context_chunks: list[str], query: str = "") -> 
     if ungrounded:
         return GroundingResult(
             False, 0.0, ungrounded, f"answer states figure(s) not in the retrieved text: {', '.join(ungrounded)}"
+        )
+
+    allowed_quantities = _quantities(context) | _quantities(query)
+    wrong_unit = sorted(f"{n} {u}" for n, u in _quantities(answer) if (n, u) not in allowed_quantities)
+    if wrong_unit:
+        return GroundingResult(
+            False, 0.0, wrong_unit, f"answer states figure(s) with a unit the retrieved text does not give: {', '.join(wrong_unit)}"
         )
 
     answer_words = _content_words(answer)

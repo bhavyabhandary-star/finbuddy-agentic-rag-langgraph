@@ -121,7 +121,7 @@
   <div class="px-5 pb-5 pt-1 border-t border-slate-100 dark:border-slate-800">
     <h2 class="text-[11px] font-extrabold text-slate-400 dark:text-slate-500 tracking-wider uppercase mb-2 mt-4" id="chatHeading"></h2>
     <p class="text-xs text-slate-500 dark:text-slate-400 mb-3 leading-relaxed" id="chatHint"></p>
-    <div class="flex flex-col gap-3 mb-3 max-h-72 overflow-y-auto custom-scrollbar" id="thread"></div>
+    <div class="flex flex-col gap-3 mb-3 max-h-[26rem] overflow-y-auto custom-scrollbar" id="thread"></div>
     <p id="hintText" hidden class="text-[11px] text-slate-400 dark:text-slate-500 mb-2"></p>
     <div class="flex flex-wrap gap-2 mb-3" id="chips"></div>
     <div class="flex gap-2 items-end">
@@ -175,6 +175,9 @@
       hintOtherLang: "For the most accurate answer, questions work best in English — I'll still reply in the language you've chosen.",
       traceShow: 'How did I answer this?', traceHide: 'Hide details',
       traceRoute: 'Type', traceGrounding: 'Grounding', traceSources: 'Source', traceStatus: 'Result', traceConfidence: 'Sureness',
+      traceFlow: ['Your question', 'Find the rules', 'Answer from them', 'Check'],
+      traceEvidence: 'Passages it read', traceCheck: 'Answer check',
+      checkPassed: 'Figures and units match the source text', checkRejected: 'Rejected: a figure did not match the source',
       routeLabels: { policy: 'Policy question', credit_assessment: 'Credit check', off_topic: "Couldn't help" },
       groundedYes: 'Found matching rules', groundedNo: "Couldn't find a good match",
       resultAnswered: 'Answered directly', resultEscalated: 'Sent to a human coach',
@@ -225,6 +228,9 @@
       hintOtherLang: 'सबसे सही जवाब के लिए सवाल अंग्रेज़ी में बेहतर काम करता है — मैं फिर भी आपकी चुनी हुई भाषा में जवाब दूंगी।',
       traceShow: 'यह जवाब कैसे मिला?', traceHide: 'बंद करें',
       traceRoute: 'तरह', traceGrounding: 'आधार', traceSources: 'स्रोत', traceStatus: 'नतीजा', traceConfidence: 'भरोसा',
+      traceFlow: ['आपका सवाल', 'नियम खोजे', 'उन्हीं से जवाब', 'जाँच'],
+      traceEvidence: 'जो अंश पढ़े', traceCheck: 'जवाब की जाँच',
+      checkPassed: 'आँकड़े और इकाइयाँ स्रोत से मेल खाती हैं', checkRejected: 'अस्वीकृत: कोई आँकड़ा स्रोत से मेल नहीं खाया',
       routeLabels: { policy: 'नियम संबंधी सवाल', credit_assessment: 'क्रेडिट जांच', off_topic: 'मदद नहीं कर पाई' },
       groundedYes: 'सही नियम मिले', groundedNo: 'सही जानकारी नहीं मिली',
       resultAnswered: 'सीधे जवाब दिया', resultEscalated: 'इंसान कोच के पास भेजा',
@@ -528,13 +534,26 @@
   function buildTraceCard(data) {
     const s = S();
     const hasScore = typeof data.top_score === 'number';
-    let rows = `<div class="flex items-center gap-2 mb-1.5"><span class="text-[9px] uppercase tracking-wide text-slate-400 dark:text-slate-500 font-bold w-16 flex-shrink-0">${s.traceRoute}</span><span class="text-[11px] font-mono px-2 py-0.5 rounded bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200">${routeLabel(data.route)}</span></div>`;
+    let rows = '';
+    const evidence = Array.isArray(data.evidence) ? data.evidence : [];
+    if (data.route === 'policy' && evidence.length) {
+      // The RAG idea in one line: the answer is built from passages that were retrieved first, then checked against them.
+      rows += `<div class="flex flex-wrap items-center gap-1 mb-2.5 text-[9px] font-bold text-blue-700 dark:text-blue-300">${s.traceFlow.map((step, i) => `<span class="px-1.5 py-0.5 rounded bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900">${i + 1} ${escapeHtml(step)}</span>`).join('<span class="text-slate-300">&rarr;</span>')}</div>`;
+    }
+    rows += `<div class="flex items-center gap-2 mb-1.5"><span class="text-[9px] uppercase tracking-wide text-slate-400 dark:text-slate-500 font-bold w-16 flex-shrink-0">${s.traceRoute}</span><span class="text-[11px] font-mono px-2 py-0.5 rounded bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200">${routeLabel(data.route)}</span></div>`;
     if (hasScore) {
       const pct = Math.max(0, Math.min(1, data.top_score)) * 100;
       rows += `<div class="flex items-center gap-2 mb-1.5"><span class="text-[9px] uppercase tracking-wide text-slate-400 dark:text-slate-500 font-bold w-16 flex-shrink-0">${s.traceGrounding}</span><div class="flex-1 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden"><div class="h-full ${data.sufficient ? 'bg-emerald-500' : 'bg-amber-500'} rounded-full" style="width:${pct}%"></div></div><span class="text-[10px] font-mono text-slate-500">${data.sufficient ? s.groundedYes : s.groundedNo}</span></div>`;
     }
     if (data.sources && data.sources.length) {
       rows += `<div class="flex items-start gap-2 mb-1.5"><span class="text-[9px] uppercase tracking-wide text-slate-400 dark:text-slate-500 font-bold w-16 flex-shrink-0">${s.traceSources}</span><span class="text-[10px] font-mono text-slate-500">${data.sources.map(escapeHtml).join(', ')}</span></div>`;
+    }
+    if (data.route === 'policy' && evidence.length) {
+      rows += `<div class="mb-1.5"><span class="text-[9px] uppercase tracking-wide text-slate-400 dark:text-slate-500 font-bold block mb-1">${s.traceEvidence}</span>${evidence.map((ev) => `<div class="mb-1.5"><span class="text-[9px] font-mono bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400 px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-600">${escapeHtml(ev.source)}</span><p class="text-[10.5px] italic text-slate-500 dark:text-slate-400 leading-snug border-l-2 border-blue-300 dark:border-blue-700 pl-2 mt-1">&ldquo;${escapeHtml(ev.text)}&rdquo;</p></div>`).join('')}</div>`;
+    }
+    if (data.grounding === 'passed' || data.grounding === 'rejected') {
+      const ok = data.grounding === 'passed';
+      rows += `<div class="flex items-center gap-2 mb-1.5"><span class="text-[9px] uppercase tracking-wide text-slate-400 dark:text-slate-500 font-bold w-16 flex-shrink-0">${s.traceCheck}</span><span class="text-[11px] ${ok ? 'text-emerald-600' : 'text-amber-600'}">${ok ? '&#10003; ' + escapeHtml(s.checkPassed) : '&#10007; ' + escapeHtml(s.checkRejected)}</span></div>`;
     }
     rows += `<div class="flex items-center gap-2"><span class="text-[9px] uppercase tracking-wide text-slate-400 dark:text-slate-500 font-bold w-16 flex-shrink-0">${s.traceStatus}</span><span class="text-[11px] font-mono ${data.escalate_to_human ? 'text-amber-600' : 'text-emerald-600'}">${data.escalate_to_human ? s.resultEscalated : s.resultAnswered}</span></div>`;
     return rows;
@@ -552,7 +571,7 @@
         ${cites ? `<div class="flex flex-wrap gap-1.5 mt-2 pt-2 border-t border-dashed border-slate-200 dark:border-slate-600">${cites}</div>` : ''}
         ${disclaimer}
       </div>
-      <button class="trace-toggle text-[11px] text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 underline decoration-dotted" data-target="${traceId}" type="button">${S().traceShow}</button>
+      <button class="trace-toggle text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline" data-target="${traceId}" type="button">${S().traceShow}</button>
       <div class="trace-card hidden bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl p-3 w-full" id="${traceId}">${buildTraceCard(data)}</div>
     `;
     thread.appendChild(wrap);

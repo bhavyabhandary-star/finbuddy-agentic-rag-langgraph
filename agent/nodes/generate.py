@@ -335,8 +335,10 @@ def _generate_core(
         guardrail_flags.append("injection_marker_neutralised")
 
     failure_reason = None
+    grounding_status = None
     if state.get("route") == "policy" and response_language == "en" and chunks and not parsed.escalate_to_human:
         grounding = check_grounding(parsed.answer, [c.text for c in chunks], state.get("query", ""))
+        grounding_status = "passed" if grounding.grounded else "rejected"
         if tracer:
             tracer.log_step(
                 "grounding_check",
@@ -396,4 +398,5 @@ def _generate_core(
         "disclaimer": disclaimer,
         "guardrail_flags": guardrail_flags,
         "failure_reason": failure_reason,
+        "grounding": grounding_status,
     }
