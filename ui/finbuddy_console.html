@@ -549,7 +549,7 @@
       rows += `<div class="flex items-start gap-2 mb-1.5"><span class="text-[9px] uppercase tracking-wide text-slate-400 dark:text-slate-500 font-bold w-16 flex-shrink-0">${s.traceSources}</span><span class="text-[10px] font-mono text-slate-500">${data.sources.map(escapeHtml).join(', ')}</span></div>`;
     }
     if (data.route === 'policy' && evidence.length) {
-      rows += `<div class="mb-1.5"><span class="text-[9px] uppercase tracking-wide text-slate-400 dark:text-slate-500 font-bold block mb-1">${s.traceEvidence}</span>${evidence.map((ev) => `<div class="mb-1.5"><span class="text-[9px] font-mono bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400 px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-600">${escapeHtml(ev.source)}</span><p class="text-[10.5px] italic text-slate-500 dark:text-slate-400 leading-snug border-l-2 border-blue-300 dark:border-blue-700 pl-2 mt-1">&ldquo;${escapeHtml(ev.text)}&rdquo;</p></div>`).join('')}</div>`;
+      rows += `<div class="mb-1.5"><span class="text-[9px] uppercase tracking-wide text-slate-400 dark:text-slate-500 font-bold block mb-1">${s.traceEvidence}</span>${evidence.map((ev) => `<div class="mb-1.5"><span class="text-[9px] font-mono bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400 px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-600">${escapeHtml(ev.source)}</span><p class="text-[10.5px] italic text-slate-500 dark:text-slate-400 leading-snug border-l-2 border-blue-300 dark:border-blue-700 pl-2 mt-1">&ldquo;${escapeHtml(String(ev.text).replace(/&amp;/g, '&'))}&rdquo;</p></div>`).join('')}</div>`;
     }
     if (data.grounding === 'passed' || data.grounding === 'rejected') {
       const ok = data.grounding === 'passed';
