@@ -134,7 +134,10 @@
 </div>
 
 <script>
-  const API_BASE = 'https://bhavyabhandary-finbuddy-langgraph-agent.hf.space';
+  // Served from this machine (local review of a branch), talk to the local API; everywhere else, the live Space.
+  const API_BASE = ['localhost', '127.0.0.1'].includes(location.hostname)
+    ? 'http://127.0.0.1:8765'
+    : 'https://bhavyabhandary-finbuddy-langgraph-agent.hf.space';
 
   const STRINGS = {
     en: {
