@@ -98,4 +98,5 @@ the scoring service derives `approved` from the repayment probability only and t
 the two. Fix: the credit decision is now made by the model from the whole profile (`approved` | `not_approved` | `review`) and checked by
 a validator that can only refuse a contradicting decision (one corrective retry, then fail closed to `review` and a hand-off). See the
 README section "Credit decision". Evaluated on three golden profiles, 10 runs each: 30/30 final decisions correct. The model first
-approved the flagged profile in roughly 1 to 5 of 10 runs, which the validator caught every time. Not changed: the scoring service.
+approved the flagged profile in 9 of 10 runs with the final prompt, and the validator caught it every time. The console says "Under review" (not
+"Approved") and explains it in plain words. Not changed: the scoring service.

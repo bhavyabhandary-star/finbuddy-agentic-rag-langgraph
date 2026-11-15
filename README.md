@@ -282,10 +282,13 @@ fails too, the answer fails closed to `review` with a fixed message and the flag
 same applies when the model is unavailable. The model only sees the eight scoring signals, never identifiers or protected attributes.
 Every run's trace records the prompt version, the model's decision and the validator's result.
 
-Measured on the real model (Qwen2.5-7B via Hugging Face, 10 runs per golden profile, prompt v2): final decisions were correct 30/30
-(Rajesh approved 10, Meena review 10, a weak profile not_approved 10) and no explanation read as an approval under a review or
-declined decision. Raw model behaviour is not that clean: on the flagged profile the model's first answer was "approved" in
-roughly 1 to 5 runs out of 10 across prompt wordings, which is what the validator and retry exist for. `tests/test_decision_eval_real.py`
+Measured on the real model (Qwen2.5-7B via Hugging Face, 10 runs per golden profile, final prompt): final decisions were correct 30/30
+(Rajesh approved 10, Meena under review 10, a weak profile not_approved 10) and no explanation read as an approval under a review or
+declined decision. Raw model behaviour is much weaker on the flagged profile: its first answer was "approved" in 9 of 10 runs, and
+the validator caught and corrected every one with a retry, so a stronger provider (Claude is the project default) would cut the retries.
+Two prompt lessons from the measurements: write `decision` before `answer` in the output format (with the explanation first, the
+declined profile came back "review" 8 times in 10), and keep the wording guidance (plain words for the person, "under review" as the
+status, no jargon) separate from the decision rules. `tests/test_decision_eval_real.py`
 is the regression suite (skipped without a provider key). Limits: three golden profiles are a small sample, the anomaly flag itself is
 only as good as the Isolation Forest behind it, and the scoring service is unchanged.
 

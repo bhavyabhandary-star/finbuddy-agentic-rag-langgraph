@@ -158,11 +158,11 @@
       creditFooter: 'Powered by FinBuddy AI · live scoring engine, illustrative profiles',
       creditErr: (msg) => `Couldn't get a score: ${msg}`,
       backLabel: 'Back', resultTitle: 'Credit Assessment', liveBadge: 'Live',
-      approved: 'APPROVED', notApproved: 'NOT APPROVED YET', review: 'REVIEW',
+      approved: 'APPROVED', notApproved: 'NOT APPROVED YET', review: 'UNDER REVIEW',
       primarySignalLabel: 'Primary signal', scoreLabel: 'Credit score',
       repayLine: (pct) => `${pct}% repayment confidence`,
-      repayLineReview: 'Confidence not reliable for this profile',
-      anomalyLine: (note) => `⚠ Unusual UPI pattern flagged${note ? ': ' + note : ''}`,
+      repayLineReview: 'Not final: a person will check this score',
+      anomalyLine: () => `Your payments look different from most people we have seen, so a person from our team will take a closer look before anything is decided.`,
       insightLabel: 'AI Coach Insight',
       factorsHeading: 'Why this decision',
       roadmapHeading: 'Your eligibility roadmap',
@@ -212,11 +212,11 @@
       creditFooter: 'FinBuddy AI द्वारा संचालित · असली स्कोरिंग इंजन, उदाहरण प्रोफ़ाइल',
       creditErr: (msg) => `स्कोर नहीं मिल पाया: ${msg}`,
       backLabel: 'वापस', resultTitle: 'क्रेडिट आकलन', liveBadge: 'लाइव',
-      approved: 'स्वीकृत', notApproved: 'अभी स्वीकृत नहीं', review: 'समीक्षा',
+      approved: 'स्वीकृत', notApproved: 'अभी स्वीकृत नहीं', review: 'समीक्षाधीन',
       primarySignalLabel: 'मुख्य संकेत', scoreLabel: 'क्रेडिट स्कोर',
       repayLine: (pct) => `${pct}% चुकाने का भरोसा`,
-      repayLineReview: 'इस प्रोफ़ाइल के लिए भरोसा विश्वसनीय नहीं है',
-      anomalyLine: (note) => `⚠ असामान्य UPI पैटर्न मिला${note ? ': ' + note : ''}`,
+      repayLineReview: 'अंतिम नहीं: एक व्यक्ति इस स्कोर की जाँच करेगा',
+      anomalyLine: () => `आपके भुगतान ज़्यादातर लोगों से अलग दिखते हैं, इसलिए कुछ भी तय होने से पहले हमारी टीम का एक व्यक्ति इन्हें ध्यान से देखेगा।`,
       insightLabel: 'AI कोच की राय',
       factorsHeading: 'यह निर्णय क्यों',
       roadmapHeading: 'आपका पात्रता रोडमैप',
@@ -424,7 +424,7 @@
     // older API does not send it, fall back to the scoring service's `approved` (no local rule is invented).
     const verdict = data.decision || (c.approved ? 'approved' : 'not_approved');
     const flagged = verdict === 'review';
-    verdictBadge.innerHTML = flagged ? '⚠ ' + escapeHtml(s.review)
+    verdictBadge.innerHTML = flagged ? '⏳ ' + escapeHtml(s.review)
       : (verdict === 'approved' ? '✓ ' : '✕ ') + escapeHtml(verdict === 'approved' ? s.approved : s.notApproved);
     verdictBadge.className = 'text-xs font-black tracking-widest px-5 py-2 rounded-full uppercase shadow-sm flex items-center gap-2 border ' +
       (flagged
@@ -441,7 +441,7 @@
     // on), so don't print "100% repayment confidence" under a REVIEW verdict.
     repayLine.textContent = flagged ? s.repayLineReview : s.repayLine(Math.round(c.calibrated_probability_of_repayment * 100));
 
-    if (c.is_anomalous) { anomalyRow.hidden = false; anomalyRow.textContent = s.anomalyLine(c.anomaly_note); }
+    if (c.is_anomalous) { anomalyRow.hidden = false; anomalyRow.textContent = s.anomalyLine(); }
     else { anomalyRow.hidden = true; }
 
     const label = s.personas[selectedPersona];

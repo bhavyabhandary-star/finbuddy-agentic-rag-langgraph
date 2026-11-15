@@ -21,7 +21,7 @@ V1_SYSTEM_SHA256 = "7df3190ce0b150fede80a23a9a1fd48d69615dfcf88cb14d46c065a6679e
 
 
 # v2 (credit-decision section + "decision" output field) is published too, so it is frozen the same way.
-V2_SYSTEM_SHA256 = "f288435fddcf83a1ffd26f891629faa0ff49528d141370ead38907e97b7ccc95"
+V2_SYSTEM_SHA256 = "c22aa4c379f78c7efe9096cc8c49d4eea413e55b80b317fd9e68926d5f035a29"
 
 
 def test_v2_system_prompt_is_frozen():
@@ -42,7 +42,7 @@ def test_rendered_system_prompt_matches_the_template():
     rendered = render_system_prompt(data='{"x": 1}', language_name="Hindi")
     assert rendered == SYSTEM_PROMPT_TEMPLATE.format(data='{"x": 1}', language_name="Hindi")
     assert "Write the \"answer\" field in Hindi" in rendered
-    assert '{"answer": "...", "decision": "<approved | not_approved | review>", "confidence": 0.0, "escalate_to_human": false}' in rendered  # braces un-doubled
+    assert '{"decision": "<approved | not_approved | review>", "answer": "...", "confidence": 0.0, "escalate_to_human": false}' in rendered  # braces un-doubled
 
 
 def test_v1_still_renders_the_original_output_format():

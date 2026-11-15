@@ -10,7 +10,6 @@ Run: pytest tests/test_decision_eval_real.py -v -s
 from __future__ import annotations
 
 import os
-import re
 
 import pytest
 
@@ -48,7 +47,7 @@ GOLDEN = [
     pytest.param("weak_declined", _credit(480, 0.18, False, False), WEAK, "not_approved", id="weak_declined"),
 ]
 
-APPROVAL_LANGUAGE = re.compile(r"\b(you can get a loan|you should be able to get a loan|you are eligible|you['’]re eligible|loan is approved|you are approved|you['’]re approved)\b", re.I)
+from agent.nodes.generate import _APPROVAL_CLAIM as APPROVAL_LANGUAGE  # one source of truth with the validator
 
 
 @pytest.mark.parametrize("provider_name, provider_cls", PROVIDERS)

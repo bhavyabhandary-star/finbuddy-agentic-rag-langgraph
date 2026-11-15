@@ -144,3 +144,44 @@ def test_the_prompt_tells_the_model_to_weigh_the_anomaly_flag_and_not_to_approve
     text = " ".join(load_prompt("generate_system").split())  # collapse the prompt's line wraps
     assert "is_anomalous" in text and 'Never choose "approved" for a flagged profile' in text
     assert "decision support" in text
+
+
+def test_a_review_explanation_that_praises_approval_is_refused_and_retried():
+    p = _Scripted(
+        _reply("review", answer="Your score supports approval, but a person will check it."),
+        _reply("review", answer="Your application is under review. A person from our team will take a closer look."),
+    )
+    out = generate_node(_state(_credit(is_anomalous=True)), provider=p)
+    assert out["answer"].startswith("Your application is under review")
+    assert "decision_inconsistent" in out["guardrail_flags"] and "decision_unverified" not in out["guardrail_flags"]
+    assert "talks about approval" in p.prompts[1]
+
+
+def test_a_review_explanation_that_keeps_praising_approval_fails_closed():
+    bad = _reply("review", answer="The scoring service approved your application, but a person will check it.")
+    out = generate_node(_state(_credit(is_anomalous=True)), provider=_Scripted(bad, bad))
+    assert out["answer"] == DECISION_UNVERIFIED_MESSAGE["en"] and out["decision"] == "review"
+
+
+@pytest.mark.parametrize(
+    "answer",
+    [
+        "Your application is under review and a person from our team will check it before anything is decided.",
+        "You are not approved yet. Your income varies a lot from month to month.",
+        "We have not approved your application yet.",
+        "The scoring service did not approve this.",
+    ],
+)
+def test_ordinary_review_and_decline_wording_is_not_mistaken_for_an_approval_claim(answer):
+    from agent.nodes.generate import _APPROVAL_CLAIM
+    assert not _APPROVAL_CLAIM.search(answer)
+
+
+@pytest.mark.parametrize(
+    "answer",
+    ["The score supports approval.", "You can get a loan.", "You should be able to get a loan.",
+     "You're eligible for a limit.", "The scoring service approved your application.", "Your loan is approved."],
+)
+def test_approval_claims_are_recognised(answer):
+    from agent.nodes.generate import _APPROVAL_CLAIM
+    assert _APPROVAL_CLAIM.search(answer)

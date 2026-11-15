@@ -7,6 +7,7 @@ slide 31), forced Pydantic-validated JSON, max_tokens set, provider-agnostic
 from __future__ import annotations
 
 import json
+import re
 import time
 from abc import ABC, abstractmethod
 
@@ -302,6 +303,16 @@ def generate_node(
         return _degraded(state, "invalid_structured_output", str(exc), tracer)
 
 
+# Positive approval claims. Used only on English text and only when the decision is NOT "approved", so an
+# explanation like "the score supports approval, but your application is under review" is refused. Negated
+# forms ("has not approved your ...") are deliberately not matched. Lexical, so it is a safety net, not proof.
+_APPROVAL_CLAIM = re.compile(
+    r"supports? approval|(?<!not )(?<!n't )approved your|you (?:can|could|should be able to) get a loan"
+    r"|you(?:'re| are) (?:eligible|approved)|loan (?:is|has been) (?:approved|granted)|eligible for",
+    re.IGNORECASE,
+)
+
+
 def _decision_problem(state: AgentState, parsed: AgentResponse) -> str | None:
     """Validates the model's credit decision against the hard evidence. Returns what is wrong, or None.
 
@@ -318,6 +329,8 @@ def _decision_problem(state: AgentState, parsed: AgentResponse) -> str | None:
             return "it approved a profile that the anomaly check flagged as unusual"
         if not credit.approved:
             return "it approved although the scoring service did not approve"
+    elif _APPROVAL_CLAIM.search(parsed.answer):
+        return f'the explanation talks about approval although the decision is "{parsed.decision}"'
     return None
 
 
