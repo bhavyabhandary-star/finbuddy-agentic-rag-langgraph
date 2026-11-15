@@ -20,6 +20,15 @@ PROMPTS_DIR = Path(__file__).resolve().parent.parent / "prompts"
 V1_SYSTEM_SHA256 = "7df3190ce0b150fede80a23a9a1fd48d69615dfcf88cb14d46c065a6679e590b"
 
 
+# v2 (credit-decision section + "decision" output field) is published too, so it is frozen the same way.
+V2_SYSTEM_SHA256 = "f288435fddcf83a1ffd26f891629faa0ff49528d141370ead38907e97b7ccc95"
+
+
+def test_v2_system_prompt_is_frozen():
+    text = (PROMPTS_DIR / "generate_system" / "v2.txt").read_text(encoding="utf-8")
+    assert hashlib.sha256(text.encode("utf-8")).hexdigest() == V2_SYSTEM_SHA256
+
+
 def test_v1_system_prompt_is_frozen():
     text = (PROMPTS_DIR / "generate_system" / "v1.txt").read_text(encoding="utf-8")
     assert hashlib.sha256(text.encode("utf-8")).hexdigest() == V1_SYSTEM_SHA256
@@ -29,11 +38,16 @@ def test_generate_module_still_exposes_the_template():
     assert SYSTEM_PROMPT_TEMPLATE == load_prompt("generate_system")
 
 
-def test_rendered_system_prompt_matches_the_original_inline_behaviour():
+def test_rendered_system_prompt_matches_the_template():
     rendered = render_system_prompt(data='{"x": 1}', language_name="Hindi")
     assert rendered == SYSTEM_PROMPT_TEMPLATE.format(data='{"x": 1}', language_name="Hindi")
     assert "Write the \"answer\" field in Hindi" in rendered
-    assert '{"answer": "...", "confidence": 0.0, "escalate_to_human": false}' in rendered  # braces un-doubled
+    assert '{"answer": "...", "decision": "<approved | not_approved | review>", "confidence": 0.0, "escalate_to_human": false}' in rendered  # braces un-doubled
+
+
+def test_v1_still_renders_the_original_output_format():
+    rendered = load_prompt("generate_system", version="v1").format(data='{"x": 1}', language_name="Hindi")
+    assert '{"answer": "...", "confidence": 0.0, "escalate_to_human": false}' in rendered
 
 
 def test_retry_suffixes_match_the_original_inline_f_strings():

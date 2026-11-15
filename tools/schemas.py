@@ -5,6 +5,8 @@ section) turns "parse the model's prose" into "validate a structured object."
 """
 from __future__ import annotations
 
+from typing import Literal
+
 from pydantic import BaseModel, Field
 
 
@@ -71,6 +73,10 @@ class AgentResponse(BaseModel):
     sources: list[str] = Field(default_factory=list)
     confidence: float
     escalate_to_human: bool = False
+    # Credit-assessment route only: the model's own verdict after reading the whole profile (score,
+    # probability, the scoring service's `approved`, the anomaly flag, the profile signals, the factors).
+    # None everywhere else. agent/nodes/generate.py validates it against the hard evidence.
+    decision: Literal["approved", "not_approved", "review"] | None = None
     disclaimer: str | None = Field(
         None,
         description=(

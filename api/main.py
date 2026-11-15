@@ -182,6 +182,8 @@ class AgentRunResponse(BaseModel):
     # of this same data; a UI wanting a score hero / factor bars needs the
     # numbers themselves, not a re-parse of prose.
     credit_assessment: CreditAssessmentResult | None = None
+    # The model's credit verdict: "approved" | "not_approved" | "review" (a person decides). None off the credit route.
+    decision: str | None = None
     # Robustness fields (all additive). run_id is what POST /agent/feedback refers to.
     run_id: str | None = None
     failure_reason: str | None = None  # why the answer is a fixed fallback, if it is
@@ -283,6 +285,7 @@ def _response_from_result(result: dict, run_id: str, pii_kinds: list[str]) -> Ag
         sufficient=result.get("sufficient"),
         loop_count=result.get("loop_count"),
         credit_assessment=result.get("credit_assessment"),
+        decision=result.get("decision"),
         run_id=run_id,
         failure_reason=result.get("failure_reason"),
         guardrail_flags=result.get("guardrail_flags", []),

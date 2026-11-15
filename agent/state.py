@@ -61,6 +61,8 @@ class AgentState(TypedDict, total=False):
     # guardrail / observability flags
     guardrail_flags: list[str]
     # Result of the runtime grounding check on a policy answer: "passed" | "rejected" | None (not applicable / not run)
+    # credit_assessment route: the model's verdict ("approved" | "not_approved" | "review"), validated against the scoring evidence
+    decision: str | None
     grounding: str | None
     # Why the answer is a fixed escalation rather than a generated one:
     # "llm_unavailable" | "invalid_structured_output" | "ungrounded_answer" | None

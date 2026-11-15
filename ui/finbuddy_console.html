@@ -155,9 +155,10 @@
       creditFooter: 'Powered by FinBuddy AI · live scoring engine, illustrative profiles',
       creditErr: (msg) => `Couldn't get a score: ${msg}`,
       backLabel: 'Back', resultTitle: 'Credit Assessment', liveBadge: 'Live',
-      approved: 'APPROVED', notApproved: 'NOT APPROVED YET',
+      approved: 'APPROVED', notApproved: 'NOT APPROVED YET', review: 'REVIEW',
       primarySignalLabel: 'Primary signal', scoreLabel: 'Credit score',
       repayLine: (pct) => `${pct}% repayment confidence`,
+      repayLineReview: 'Confidence not reliable for this profile',
       anomalyLine: (note) => `⚠ Unusual UPI pattern flagged${note ? ': ' + note : ''}`,
       insightLabel: 'AI Coach Insight',
       factorsHeading: 'Why this decision',
@@ -208,9 +209,10 @@
       creditFooter: 'FinBuddy AI द्वारा संचालित · असली स्कोरिंग इंजन, उदाहरण प्रोफ़ाइल',
       creditErr: (msg) => `स्कोर नहीं मिल पाया: ${msg}`,
       backLabel: 'वापस', resultTitle: 'क्रेडिट आकलन', liveBadge: 'लाइव',
-      approved: 'स्वीकृत', notApproved: 'अभी स्वीकृत नहीं',
+      approved: 'स्वीकृत', notApproved: 'अभी स्वीकृत नहीं', review: 'समीक्षा',
       primarySignalLabel: 'मुख्य संकेत', scoreLabel: 'क्रेडिट स्कोर',
       repayLine: (pct) => `${pct}% चुकाने का भरोसा`,
+      repayLineReview: 'इस प्रोफ़ाइल के लिए भरोसा विश्वसनीय नहीं है',
       anomalyLine: (note) => `⚠ असामान्य UPI पैटर्न मिला${note ? ': ' + note : ''}`,
       insightLabel: 'AI कोच की राय',
       factorsHeading: 'यह निर्णय क्यों',
@@ -415,9 +417,16 @@
     const c = data.credit_assessment;
     if (!c) return;
 
-    verdictBadge.innerHTML = (c.approved ? '✓ ' : '✕ ') + escapeHtml(c.approved ? s.approved : s.notApproved);
+    // `decision` is the model's own verdict, validated server-side against the scoring evidence. If an
+    // older API does not send it, fall back to the scoring service's `approved` (no local rule is invented).
+    const verdict = data.decision || (c.approved ? 'approved' : 'not_approved');
+    const flagged = verdict === 'review';
+    verdictBadge.innerHTML = flagged ? '⚠ ' + escapeHtml(s.review)
+      : (verdict === 'approved' ? '✓ ' : '✕ ') + escapeHtml(verdict === 'approved' ? s.approved : s.notApproved);
     verdictBadge.className = 'text-xs font-black tracking-widest px-5 py-2 rounded-full uppercase shadow-sm flex items-center gap-2 border ' +
-      (c.approved
+      (flagged
+        ? 'bg-gradient-to-r from-amber-50 to-yellow-50 dark:from-amber-950/50 dark:to-yellow-950/40 text-amber-800 dark:text-amber-400 border-amber-300 dark:border-amber-800'
+        : verdict === 'approved'
         ? 'bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-950/50 dark:to-teal-950/40 text-emerald-800 dark:text-emerald-400 border-emerald-300 dark:border-emerald-800'
         : 'bg-gradient-to-r from-rose-50 to-orange-50 dark:from-rose-950/50 dark:to-orange-950/40 text-rose-800 dark:text-rose-400 border-rose-300 dark:border-rose-800');
 
@@ -425,7 +434,9 @@
     primarySignalValue.textContent = primary ? factorDisplayName(primary.factor) : '—';
     fairnessTag.textContent = c.fairness_mitigation_applied ? s.metaFair : s.metaPlain;
     scoreValue.textContent = c.credit_score;
-    repayLine.textContent = s.repayLine(Math.round(c.calibrated_probability_of_repayment * 100));
+    // A flagged profile's probability is not trustworthy (it is outside what the model was trained
+    // on), so don't print "100% repayment confidence" under a REVIEW verdict.
+    repayLine.textContent = flagged ? s.repayLineReview : s.repayLine(Math.round(c.calibrated_probability_of_repayment * 100));
 
     if (c.is_anomalous) { anomalyRow.hidden = false; anomalyRow.textContent = s.anomalyLine(c.anomaly_note); }
     else { anomalyRow.hidden = true; }
