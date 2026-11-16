@@ -265,6 +265,7 @@
   const S = () => STRINGS[currentLang];
   let selectedPersona = 'rajesh';
   let formValues = { ...PERSONAS.rajesh };
+  const customValues = { ...PERSONAS.custom };  // the user's own numbers; survives switching to Rajesh/Meena and back
   let mode = 'simple';
   let sessionId = null;
   try { sessionId = crypto.randomUUID(); } catch (e) { sessionId = 'sess-' + Math.random().toString(36).slice(2); }
@@ -393,7 +394,8 @@
     const btn = e.target.closest('.persona-card');
     if (!btn) return;
     selectedPersona = btn.dataset.persona;
-    formValues = { ...PERSONAS[selectedPersona] };
+    // Custom keeps whatever the user last typed (same object, edited in place); the example profiles always reset.
+    formValues = selectedPersona === 'custom' ? customValues : { ...PERSONAS[selectedPersona] };
     if (selectedPersona === 'custom') setMode('advanced'); else applyStrings();
   });
 
