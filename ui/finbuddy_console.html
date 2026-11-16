@@ -144,8 +144,9 @@
       tagline: 'Explainable Credit Engine',
       statusChecking: 'checking…', statusLive: 'live', statusDown: "offline",
       creditHeading: 'Get a credit assessment', personaCount: '3 profiles',
-      creditHint: "Pick someone like you, or enter your own numbers. This calls FinBuddy's real, already-approved scoring system.",
+      creditHint: "Pick someone like you, or choose Custom to enter your own numbers. This calls FinBuddy's real, already-approved scoring system.",
       tabSimple: 'Simple View', tabAdvanced: 'Advanced Mode',
+      lockedHint: 'These are fixed example numbers (read only). Choose Custom to enter your own.',
       fields: {
         avg_monthly_income: 'Avg monthly income (₹)', income_regularity_score: 'Income regularity (0–1)',
         tx_count_30d: 'UPI transactions / 30d', merchant_diversity: 'Merchant diversity',
@@ -198,8 +199,9 @@
       tagline: 'समझने-योग्य क्रेडिट इंजन',
       statusChecking: 'देख रही हूं…', statusLive: 'लाइव', statusDown: 'ऑफ़लाइन',
       creditHeading: 'क्रेडिट आकलन करवाएं', personaCount: '3 प्रोफ़ाइल',
-      creditHint: 'अपने जैसा कोई चुनें, या अपने नंबर डालें। यह FinBuddy के असली, पहले से स्वीकृत स्कोरिंग सिस्टम को कॉल करता है।',
+      creditHint: 'अपने जैसा कोई चुनें, या अपने नंबर डालने के लिए कस्टम चुनें। यह FinBuddy के असली, पहले से स्वीकृत स्कोरिंग सिस्टम को कॉल करता है।',
       tabSimple: 'सरल दृश्य', tabAdvanced: 'विस्तृत मोड',
+      lockedHint: 'ये उदाहरण के निश्चित नंबर हैं (केवल देखने के लिए)। अपने नंबर डालने के लिए कस्टम चुनें।',
       fields: {
         avg_monthly_income: 'औसत मासिक आय (₹)', income_regularity_score: 'आय नियमितता (0–1)',
         tx_count_30d: 'UPI लेनदेन / 30 दिन', merchant_diversity: 'दुकानों की विविधता',
@@ -361,15 +363,22 @@
 
   function renderFieldGrid() {
     const s = S();
+    // Only the Custom profile is editable; Rajesh and Meena are fixed examples so everyone sees the same results.
+    const locked = !isEditable();
+    const lockAttr = locked ? ' readonly aria-readonly="true"' : '';
+    const lockCls = locked ? 'opacity-60 cursor-not-allowed select-none' : 'focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500';
     const rows = FIELD_ORDER.map((key) => `
       <div><label class="block text-slate-400 dark:text-slate-500 text-[9px] font-bold uppercase tracking-wide mb-1">${escapeHtml(s.fields[key])}</label>
-      <input type="number" data-field="${key}" value="${formValues[key]}" step="${NUM_STEP[key] || '1'}" min="0" class="w-full bg-slate-800 dark:bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-white text-xs font-semibold focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"></div>
+      <input type="number" data-field="${key}" value="${formValues[key]}" step="${NUM_STEP[key] || '1'}" min="0"${lockAttr} class="w-full bg-slate-800 dark:bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-white text-xs font-semibold ${lockCls}"></div>
     `).join('');
     const geoOptions = Object.keys(s.geographyOptions).map((k) => `<option value="${k}" ${formValues.geography === k ? 'selected' : ''}>${escapeHtml(s.geographyOptions[k])}</option>`).join('');
-    fieldGrid.innerHTML = `<div class="grid grid-cols-2 gap-3">${rows}</div>
+    const hint = locked ? `<p id="lockedHint" class="text-[11px] text-amber-600 dark:text-amber-400 mb-3">🔒 ${escapeHtml(s.lockedHint)}</p>` : '';
+    fieldGrid.innerHTML = `${hint}<div class="grid grid-cols-2 gap-3">${rows}</div>
       <div><label class="block text-slate-400 dark:text-slate-500 text-[9px] font-bold uppercase tracking-wide mb-1">${escapeHtml(s.fields.geography)}</label>
-      <select data-field="geography" class="w-full bg-slate-800 dark:bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-white text-xs font-semibold focus:outline-none focus:border-blue-500">${geoOptions}</select></div>`;
+      <select data-field="geography"${locked ? ' disabled aria-readonly="true"' : ''} class="w-full bg-slate-800 dark:bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-white text-xs font-semibold ${locked ? 'opacity-60 cursor-not-allowed' : 'focus:outline-none focus:border-blue-500'}">${geoOptions}</select></div>`;
   }
+
+  function isEditable() { return selectedPersona === 'custom'; }
 
   function setMode(m) {
     mode = m;
@@ -390,7 +399,7 @@
 
   fieldGrid.addEventListener('input', (e) => {
     const target = e.target.closest('[data-field]');
-    if (!target) return;
+    if (!target || !isEditable()) return;  // belt and braces: Rajesh and Meena are never edited
     formValues[target.dataset.field] = target.tagName === 'SELECT' ? target.value : Number(target.value);
     if (mode === 'simple') renderSimpleCard();
   });
