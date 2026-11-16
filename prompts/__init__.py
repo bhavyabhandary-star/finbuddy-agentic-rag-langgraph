@@ -24,9 +24,10 @@ _PROMPTS_DIR = Path(__file__).resolve().parent
 
 # The one place that decides which version of each prompt is live.
 ACTIVE_VERSIONS: dict[str, str] = {
-    "generate_system": "v1",
+    "generate_system": "v2",  # v2 adds the credit-decision section and the "decision" output field
     "generate_retry_invalid_json": "v1",
     "generate_retry_wrong_script": "v1",
+    "generate_retry_inconsistent_decision": "v1",
 }
 
 

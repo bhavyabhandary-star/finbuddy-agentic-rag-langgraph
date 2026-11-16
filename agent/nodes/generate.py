@@ -7,6 +7,7 @@ slide 31), forced Pydantic-validated JSON, max_tokens set, provider-agnostic
 from __future__ import annotations
 
 import json
+import re
 import time
 from abc import ABC, abstractmethod
 
@@ -173,6 +174,34 @@ LLM_UNAVAILABLE_MESSAGE = {
         "ದಯವಿಟ್ಟು ಸ್ವಲ್ಪ ಸಮಯದ ನಂತರ ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ, ಅಥವಾ ನೇರವಾಗಿ ಮಾನವ ಕೋಚ್ ಸಹಾಯ ಪಡೆಯಿರಿ."
     ),
 }
+# Fail-closed answer for a credit assessment whose model-made decision could not be verified (the model
+# contradicted the scoring evidence twice, or gave no decision). It is a safety net for model failure, not
+# the normal path: the decision and its explanation are written by the model (prompts/generate_system/v2).
+# The hi wording has not been reviewed by a native speaker.
+DECISION_UNVERIFIED_MESSAGE = {
+    "en": (
+        "I couldn't confirm a reliable decision for this profile, so I won't give one. "
+        "A person will review it before anything is decided."
+    ),
+    "hi": (
+        "मैं इस प्रोफ़ाइल के लिए कोई भरोसेमंद निर्णय पक्का नहीं कर पाई, इसलिए मैं कोई निर्णय नहीं दे रही। "
+        "कुछ भी तय होने से पहले एक व्यक्ति इसकी समीक्षा करेगा।"
+    ),
+}
+
+# Data minimisation: the model sees these eight scoring signals about the person and nothing else
+# (no identifiers, no protected attributes).
+PROFILE_SIGNAL_KEYS = (
+    "avg_monthly_income",
+    "income_regularity_score",
+    "tx_count_30d",
+    "merchant_diversity",
+    "balance_dip_frequency",
+    "b2b_ratio",
+    "avg_transaction_size",
+    "tenure_months",
+)
+
 # Only English policy answers are grounding-checked (see guardrails/grounding.py), so en only.
 UNGROUNDED_ANSWER_MESSAGE = (
     "I couldn't verify that answer against the RBI and DPDP documents I have, so I won't state it "
@@ -231,9 +260,11 @@ def _build_data_section(state: AgentState) -> str:
     if state.get("route") == "credit_assessment":
         credit = state.get("credit_assessment")
         trend = state.get("risk_trend")
+        signals = state.get("credit_signals") or {}
         return json.dumps(
             {
                 "credit_assessment": credit.model_dump() if credit else None,
+                "profile_signals": {k: signals[k] for k in PROFILE_SIGNAL_KEYS if k in signals},
                 "risk_trend": trend.model_dump() if trend else None,
             }
         )
@@ -255,6 +286,8 @@ def _degraded(state: AgentState, reason: str, detail: str, tracer: RunTracer | N
         "escalate_to_human": True,
         "disclaimer": None,
         "failure_reason": reason,
+        # No model verdict exists, so a credit assessment is "review": a person decides, never an implied approval.
+        "decision": "review" if state.get("route") == "credit_assessment" else None,
     }
 
 
@@ -270,12 +303,46 @@ def generate_node(
         return _degraded(state, "invalid_structured_output", str(exc), tracer)
 
 
+# Positive approval claims. Used only on English text and only when the decision is NOT "approved", so an
+# explanation like "the score supports approval, but your application is under review" is refused. Negated
+# forms ("has not approved your ...") are deliberately not matched. Lexical, so it is a safety net, not proof.
+_APPROVAL_CLAIM = re.compile(
+    r"supports? approval|(?<!not )(?<!n't )approved your|you (?:can|could|should be able to) get a loan"
+    r"|you(?:'re| are) (?:eligible|approved)|loan (?:is|has been) (?:approved|granted)|eligible for",
+    re.IGNORECASE,
+)
+
+
+def _decision_problem(state: AgentState, parsed: AgentResponse) -> str | None:
+    """Validates the model's credit decision against the hard evidence. Returns what is wrong, or None.
+
+    This is a validator, never an author: it does not write or change a decision. The model decides
+    (prompts/generate_system/v2); this only refuses a decision that contradicts the scoring evidence, so
+    a model failure cannot reach a customer as an approval."""
+    credit = state.get("credit_assessment")
+    if state.get("route") != "credit_assessment" or credit is None:
+        return None
+    if parsed.decision is None:
+        return "no decision was given for a credit assessment"
+    if parsed.decision == "approved":
+        if credit.is_anomalous:
+            return "it approved a profile that the anomaly check flagged as unusual"
+        if not credit.approved:
+            return "it approved although the scoring service did not approve"
+    elif _APPROVAL_CLAIM.search(parsed.answer):
+        return f'the explanation talks about approval although the decision is "{parsed.decision}"'
+    return None
+
+
 def _generate_core(
     state: AgentState, provider: LLMProvider | None = None, tracer: RunTracer | None = None
 ) -> AgentState:
     provider = provider or ClaudeProvider()
     response_language = state.get("response_language") or "en"
     language_name = LANGUAGE_NAMES.get(response_language, "English")
+    guardrail_flags = list(state.get("guardrail_flags", []))
+    failure_reason = None
+    is_credit = state.get("route") == "credit_assessment"
 
     if response_language == "kn":
         # Unconditional fallback, not a retry target: real production calls
@@ -289,8 +356,10 @@ def _generate_core(
         # hoping is pointless here -- skip generation entirely rather than
         # spend a real LLM call on output that's already known to be
         # unusable and would just get discarded.
-        parsed: AgentResponse = AgentResponse(
-            answer=WRONG_SCRIPT_FALLBACK_ANSWER["kn"], sources=[], confidence=0.0, escalate_to_human=False
+        # A fixed fallback is not a credit decision, so for a credit assessment the safe state is "review".
+        parsed = AgentResponse(
+            answer=WRONG_SCRIPT_FALLBACK_ANSWER["kn"], sources=[], confidence=0.0, escalate_to_human=False,
+            decision="review" if is_credit else None,
         )
     else:
         data_section = _build_data_section(state)
@@ -329,12 +398,43 @@ def _generate_core(
                 if fallback_answer:
                     parsed = parsed.model_copy(update={"answer": fallback_answer})
 
-    guardrail_flags = list(state.get("guardrail_flags", []))
+        problem = _decision_problem(state, parsed)
+        if tracer and is_credit:
+            tracer.log_step(
+                "decision_check",
+                decision="consistent" if problem is None else f"INCONSISTENT: {problem}",
+                llm_decision=parsed.decision,
+                prompt_version=ACTIVE_VERSIONS["generate_system"],
+            )
+        if problem is not None:
+            # One corrective retry that tells the model what was wrong, then fail closed to a human:
+            # a bad model output must never reach a customer as an approval.
+            guardrail_flags.append("decision_inconsistent")
+            retry_prompt = system_prompt + render_retry_suffix("generate_retry_inconsistent_decision", problem=problem)
+            try:
+                retried_raw = _complete(provider, retry_prompt, state["query"], tracer)
+                retried = validate_structured_output(retried_raw, AgentResponse, regenerate=_regenerate)
+            except (ValidationError, LLMUnavailableError):
+                retried = None
+            if retried is not None and _decision_problem(state, retried) is None and is_expected_script(
+                retried.answer, response_language
+            ):
+                parsed = retried
+            else:
+                guardrail_flags.append("decision_unverified")
+                failure_reason = "decision_unverified"
+                parsed = AgentResponse(
+                    answer=DECISION_UNVERIFIED_MESSAGE.get(response_language, DECISION_UNVERIFIED_MESSAGE["en"]),
+                    sources=[], confidence=0.0, escalate_to_human=True, decision="review",
+                )
+                if tracer:
+                    tracer.log_step("decision_check", decision="fail-closed: decision unverified, handed to a person",
+                                    problem=problem)
+
     chunks = state.get("retrieved_chunks", [])
     if any(sanitize_with_flags(c.text)[1] for c in chunks):
         guardrail_flags.append("injection_marker_neutralised")
 
-    failure_reason = None
     grounding_status = None
     if state.get("route") == "policy" and response_language == "en" and chunks and not parsed.escalate_to_human:
         grounding = check_grounding(parsed.answer, [c.text for c in chunks], state.get("query", ""))
@@ -361,7 +461,8 @@ def _generate_core(
     # another, purely by chance. Session 18's "add a verification step" theme,
     # applied the same way as the tool_error fix above: a classical check
     # beats hoping the model self-reports correctly.
-    escalate_to_human = parsed.escalate_to_human or state.get("sufficient") is False
+    # A "review" decision means a person decides, so it is always a hand-off, whatever the model flagged.
+    escalate_to_human = parsed.escalate_to_human or state.get("sufficient") is False or parsed.decision == "review"
 
     # Disclaimer is fixed, code-appended text, never LLM-generated — same reason
     # production FinBuddy's low-confidence escalation string is fixed, not
@@ -384,6 +485,7 @@ def _generate_core(
             confidence=parsed.confidence,
             escalate_to_human=escalate_to_human,
             model_self_reported_escalate=parsed.escalate_to_human,
+            llm_decision=parsed.decision,
             prompt_version=ACTIVE_VERSIONS["generate_system"],
         )
 
@@ -399,4 +501,5 @@ def _generate_core(
         "guardrail_flags": guardrail_flags,
         "failure_reason": failure_reason,
         "grounding": grounding_status,
+        "decision": parsed.decision if is_credit else None,
     }

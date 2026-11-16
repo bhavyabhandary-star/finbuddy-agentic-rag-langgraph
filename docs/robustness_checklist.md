@@ -90,3 +90,13 @@ and through the API. Still lexical: it does not catch a wrong claim that reuses 
 The console's "How did I answer this?" trace now depicts the RAG steps for a policy answer: the question, the passages retrieved (the
 top two, as short excerpts with their source files), and the result of the answer check. The API returns them as `evidence` and
 `grounding` on `/agent/run`; both are empty off the policy route.
+
+## An approved score on a flagged profile (2026-11-15)
+
+The console showed "APPROVED" at 850 with "100% repayment confidence" directly above the anomaly warning for the Meena demo profile. Cause:
+the scoring service derives `approved` from the repayment probability only and treats `is_anomalous` as advisory, so nothing connected
+the two. Fix: the credit decision is now made by the model from the whole profile (`approved` | `not_approved` | `review`) and checked by
+a validator that can only refuse a contradicting decision (one corrective retry, then fail closed to `review` and a hand-off). See the
+README section "Credit decision". Evaluated on three golden profiles, 10 runs each: 30/30 final decisions correct. The model first
+approved the flagged profile in 9 of 10 runs with the final prompt, and the validator caught it every time. The console says "Under review" (not
+"Approved") and explains it in plain words. Not changed: the scoring service.

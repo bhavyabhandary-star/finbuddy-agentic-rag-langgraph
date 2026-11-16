@@ -167,6 +167,13 @@ def test_setu_feed_real_signals_through_api_layer():
 
     assert response.status_code == 200
     body = response.json()
-    assert body["escalate_to_human"] is False
+    # The sandbox profile is usually flagged by the anomaly check (it sits outside the synthetic training
+    # range). The model's verdict, the hand-off and the evidence must agree: a flagged profile is never an
+    # approval, and a "review" is always handed to a person.
+    credit = body["credit_assessment"]
+    assert body["decision"] in {"approved", "not_approved", "review"}
+    if credit["is_anomalous"] or body["failure_reason"] == "decision_unverified":
+        assert body["decision"] != "approved"
+    assert body["escalate_to_human"] is (body["decision"] == "review")
     assert len(body["answer"]) > 0
     assert body["disclaimer"] is not None

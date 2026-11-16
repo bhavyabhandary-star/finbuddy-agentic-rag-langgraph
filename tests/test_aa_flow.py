@@ -83,7 +83,7 @@ class StubProvider:
 
     def complete(self, system_prompt, user_query, max_tokens):
         self.prompts.append(system_prompt + "\n" + user_query)
-        return json.dumps({"answer": "Your credit score is 700, which is good.", "confidence": 0.9, "escalate_to_human": False})
+        return json.dumps({"answer": "Your credit score is 700, which is good.", "decision": "approved", "confidence": 0.9, "escalate_to_human": False})
 
 
 FACTORS = [ScoreFactor(factor="income_regularity_score", shap_contribution=0.1, direction="positive",

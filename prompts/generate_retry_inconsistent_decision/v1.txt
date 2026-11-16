@@ -1,0 +1,2 @@
+Your previous decision was rejected: {problem}.
+Read DATA again and return the JSON again, with a decision and an answer that agree with DATA.

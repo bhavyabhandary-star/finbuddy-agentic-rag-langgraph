@@ -265,6 +265,33 @@ Today: 1 profile, and it is Setu **sandbox** (mock accounts), with 0 repayment o
 That profile is outside the synthetic training range on 3 of 8 signals (its average transaction is about 14x the
 synthetic 99th percentile). Full status, thresholds and the path to real data: [`docs/real_data_readiness.md`](docs/real_data_readiness.md).
 
+## Credit decision: made by the model, validated against the evidence (2026-11-15)
+
+The scoring service computes `approved` from the repayment probability alone; its anomaly flag (F-006) is advisory. On the demo's
+Meena profile that meant an automatic "APPROVED" at 850 next to a "treat as lower-confidence" warning.
+
+Now the Generate node makes the credit decision. `prompts/generate_system/v2.txt` gives the model the whole profile (score,
+probability, the scoring service's own verdict, the anomaly flag and note, the eight profile signals, the top factors, the risk
+trend) and asks for one `decision`: `approved`, `not_approved` or `review`, plus an explanation that agrees with it. `review` means a
+person decides, and is always a hand-off. `/agent/run` returns it as `decision`; the console shows it (REVIEW in amber).
+
+The model is prompted, not fine-tuned, so safety does not rest on it behaving. `_decision_problem` in `agent/nodes/generate.py` is a
+validator, not an author: it never writes a decision. It refuses an "approved" on a profile the anomaly check flagged, an "approved" when
+the scoring service did not approve, and a missing decision. A refusal triggers one corrective retry that says what was wrong; if that
+fails too, the answer fails closed to `review` with a fixed message and the flags `decision_inconsistent` / `decision_unverified`. The
+same applies when the model is unavailable. The model only sees the eight scoring signals, never identifiers or protected attributes.
+Every run's trace records the prompt version, the model's decision and the validator's result.
+
+Measured on the real model (Qwen2.5-7B via Hugging Face, 10 runs per golden profile, final prompt): final decisions were correct 30/30
+(Rajesh approved 10, Meena under review 10, a weak profile not_approved 10) and no explanation read as an approval under a review or
+declined decision. Raw model behaviour is much weaker on the flagged profile: its first answer was "approved" in 9 of 10 runs, and
+the validator caught and corrected every one with a retry, so a stronger provider (Claude is the project default) would cut the retries.
+Two prompt lessons from the measurements: write `decision` before `answer` in the output format (with the explanation first, the
+declined profile came back "review" 8 times in 10), and keep the wording guidance (plain words for the person, "under review" as the
+status, no jargon) separate from the decision rules. `tests/test_decision_eval_real.py`
+is the regression suite (skipped without a provider key). Limits: three golden profiles are a small sample, the anomaly flag itself is
+only as good as the Isolation Forest behind it, and the scoring service is unchanged.
+
 ## Live Account Aggregator flow
 
 `POST /agent/run` accepts an `aa_handle` (a 10-digit mobile, or `<mobile>@<AA handle>` such as `9999999999@finvu`; Setu's sandbox no longer accepts `@onemoney`). For a credit question the
