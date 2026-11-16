@@ -23,7 +23,7 @@ scoring API + Risk-Trend model for inference — built with LangChain + LangGrap
 
 | | |
 |---|---|
-| **Live** | HF Space snapshot `a72e855` (2026-11-14; adds the unit-aware answer check and the retrieved passages in `/agent/run`), running the promoted Intent Router `20261027T083951`. No Setu credentials there: an `aa_handle` request fails safe to a human hand-off |
+| **Live** | HF Space snapshot `85e9a15` (2026-11-16; adds the model-made, validated credit decision with the plain-language "under review" state, on top of the unit-aware answer check and the retrieved passages in `/agent/run`), running the promoted Intent Router `20261027T083951`. No Setu credentials there: an `aa_handle` request fails safe to a human hand-off |
 | **Router accuracy on unseen queries** | **~80%** (blind set, n=30, roughly ±14 points); 97% on the dev set it was hardened against (optimistic). The old "100% on the eval harness" was a train-on-test leak and is retired. |
 | **When the router is wrong** | It fails safe: off-topic and insufficient retrieval both end in a human hand-off; a credit misroute with no signals escalates with no score |
 | **Failure behaviour** | LLM outage, timeout, invalid JSON, or an answer stating a figure not in the sources → fixed human-escalating answer with a `failure_reason`; never a 500 |
