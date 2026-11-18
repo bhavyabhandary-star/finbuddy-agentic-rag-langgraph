@@ -12,7 +12,7 @@ pinned: false
 
 **Repo:** [github.com/bhavyabhandary-star/finbuddy-agentic-rag-langgraph](https://github.com/bhavyabhandary-star/finbuddy-agentic-rag-langgraph)
 **Live demo:** [huggingface.co/spaces/BhavyaBhandary/finbuddy-langgraph-agent](https://huggingface.co/spaces/BhavyaBhandary/finbuddy-langgraph-agent)
-**Backup demo video (3 min, narrated):** [Google Drive](https://drive.google.com/file/d/1DKLpCHPksGxLZMankYY6FyJvQBDPXuwJ/view?usp=sharing). Shows a cited policy answer with its trace, a credit score, a Setu sandbox profile (flagged as unusual, not a real borrower), an off-topic refusal, and PAN/mobile redaction.
+**Backup demo video (3:56, narrated):** [Google Drive](https://drive.google.com/file/d/1DKLpCHPksGxLZMankYY6FyJvQBDPXuwJ/view?usp=sharing). Shows a cited policy answer with its trace, Rajesh's credit score (770, approved), Meena's (850, under review because her pattern is unusual), a Setu sandbox profile (738, under review, not a real borrower), an off-topic refusal, and PAN/mobile redaction.
 
 A local-first, agentic RAG system that answers FinBuddy policy/coaching questions
 grounded in real RBI/DPDP PDFs, and orchestrates FinBuddy's existing production
@@ -28,7 +28,7 @@ scoring API + Risk-Trend model for inference — built with LangChain + LangGrap
 | **When the router is wrong** | It fails safe: off-topic and insufficient retrieval both end in a human hand-off; a credit misroute with no signals escalates with no score |
 | **Failure behaviour** | LLM outage, timeout, invalid JSON, or an answer stating a figure not in the sources → fixed human-escalating answer with a `failure_reason`; never a 500 |
 | **Privacy / access** | PAN, Aadhaar and mobile numbers redacted before routing, the LLM and the logs; optional `X-API-Key`; per-client rate limit (30/min) |
-| **Tests** | 111 pass, 3 skip (the real-Claude tests, no billing) |
+| **Tests** | 194 pass, 6 skip locally (2026-11-19). The skips need a real provider key (`ANTHROPIC_API_KEY`, `HF_TOKEN`) or a local artifact, so CI skips a few more |
 | **Still open** | Hindi output garbled (accepted), Kannada fixed fallback, demo API open unless a key is set, caller identity unverified, scoring models trained on synthetic data, no console feedback buttons, RAGAS blocked on the dev machine |
 
 Details, before/after measurements and the full list of what is *not* solved:
@@ -386,7 +386,7 @@ artifact/profile/token isn't present (same pattern throughout — check each
 test file's `pytest.mark.skipif` for exactly what it needs).
 
 ```bash
-pytest tests/ -v                      # 111 pass, 3 skip when no Claude billing
+pytest tests/ -v                      # 194 pass, 6 skip without provider keys (2026-11-19)
 python -m eval.evaluate_agent --gate  # held-out + blind routing sets, per-route recall
 python -m eval.judge_eval             # RAG answers graded by an independent (Llama) judge
 ```
